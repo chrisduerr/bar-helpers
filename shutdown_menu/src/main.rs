@@ -20,7 +20,7 @@ fn reboot() {
     Command::new("shutdown").args(&["-r", "now"]).spawn().unwrap();
 }
 
-// Check if Scale already is running
+// Check if already running
 fn is_running() -> bool {
     let output = Command::new("ps")
                          .args(&["-ax"])
@@ -35,7 +35,7 @@ fn gotta_kill_em_all() {
     Command::new("killall").arg("shutdown_menu").spawn().unwrap();
 }
 
-// Create a new scale
+// Create a new
 // If one is already running -> KILL IT
 fn main() {
     if is_running() {
@@ -43,7 +43,7 @@ fn main() {
         return;
     }
 
-    // Check if bar was specified
+    // Check if screen was specified
     let args: Vec<_> = env::args().collect();
     if args.len() <= 1 {
         return;

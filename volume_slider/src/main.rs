@@ -55,7 +55,7 @@ fn main() {
         return;
     }
 
-    // Check if bar was specified
+    // Check if screen was specified
     let args: Vec<_> = env::args().collect();
     if args.len() <= 1 {
         return;
