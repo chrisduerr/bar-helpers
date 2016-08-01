@@ -1,0 +1,10 @@
+[package]
+name = "bar_control"
+version = "0.1.0"
+authors = ["UndeadLeech <programming@undeadleech.de>"]
+
+[dependencies]
+time = "*"
+rand = "*"
+regex = "*"
+i3ipc = "*"

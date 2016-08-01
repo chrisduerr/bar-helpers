@@ -1,0 +1,12 @@
+[package]
+name = "notification_popup"
+version = "0.1.0"
+authors = ["UndeadLeech <programming@undeadleech.de>"]
+
+[dependencies]
+regex = "0.1.0"
+rustc-serialize = "0.3.19"
+
+[dependencies.gtk]
+version = "0.1.0"
+features = ["v3_10"]
