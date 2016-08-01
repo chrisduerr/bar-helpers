@@ -1,5 +1,7 @@
 // TODO: PIPE INTO BASH
 // TODO: ADD OFFSET TO ELEMENTS WITHOUT UNDERLINE
+// TODO: Fix ugly loop {}
+// TODO: Change some stuff from hardcoded to user defined 
 
 extern crate time;
 extern crate rand;
