@@ -1,7 +1,6 @@
-// TODO: PIPE INTO BASH
 // TODO: ADD OFFSET TO ELEMENTS WITHOUT UNDERLINE
 // TODO: Fix ugly loop {}
-// TODO: Change some stuff from hardcoded to user defined 
+// TODO: Change some stuff from hardcoded to user defined
 
 extern crate time;
 extern crate rand;
@@ -16,6 +15,7 @@ use std::io::prelude::*;
 use rand::{thread_rng, Rng};
 use std::process::{Command, Stdio};
 use std::os::unix::net::UnixStream;
+use std::os::unix::io::{FromRawFd, IntoRawFd};
 
 
 const BG_COL: &'static str = "#121212";
@@ -140,18 +140,26 @@ fn main() {
     let mut rng = thread_rng();
     let pow_icon = rng.choose(&pow_icon_choices).unwrap().clone();
 
+    let mut bar_threads = Vec::new();
     let screens = get_screens();
     for screen in screens.iter() {
         let name = screen.name.clone();
         let xres = screen.xres.clone();
         let xoffset = screen.xoffset.clone();
         println!("Should start threads here: ");
-        thread::spawn(move || {
+        bar_threads.push(thread::spawn(move || {
             println!("Started thread for screen {}", name);
             let rect = format!("{}x{}+{}+0", xres, barh, xoffset);
             let mut lemonbar = Command::new("lemonbar")
-                .args(&["-p", "-g", &rect[..], "-o", boff, "-u", ulnh, "-F", FG_COL, "-B", BG_COL, "-U", BG_COL, "-f", font0, "-f", font1])
+                .args(&["-g", &rect[..], "-o", boff, "-u", ulnh, "-F", FG_COL, "-B", BG_COL, "-U", BG_COL, "-f", font0, "-f", font1])
                 .stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
+            let stdin = lemonbar.stdin.as_mut().unwrap();
+            let stdout = lemonbar.stdout.take().unwrap();
+            thread::spawn(move || {
+                unsafe {
+                    let _ = Command::new("sh").stdin(Stdio::from_raw_fd(stdout.into_raw_fd())).spawn();
+                }
+            });
             loop {
                 let date_block = get_date();
                 let ws_block = get_ws(&name);
@@ -160,14 +168,14 @@ fn main() {
                 let pow_block = get_pow(&name, &pow_icon);
 
                 let bar_string = format!("{}     {}%{{c}}{}%{{r}}{}     {}\n", pow_block, ws_block, date_block, not_block, vol_block);
-                lemonbar.stdin.as_mut().unwrap().write((&bar_string[..]).as_bytes()).unwrap();
-                lemonbar.stdin.as_mut().unwrap().flush().unwrap();
+                let _ = stdin.write((&bar_string[..]).as_bytes());
 
                 thread::sleep(Duration::from_millis(100));
             }
-        });
+        }));
     }
 
-    loop {
+    for bar_thread in bar_threads {
+        let _ = bar_thread.join();
     }
 }
