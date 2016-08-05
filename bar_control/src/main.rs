@@ -1,6 +1,5 @@
-// TODO: ADD OFFSET TO ELEMENTS WITHOUT UNDERLINE
-// TODO: Fix ugly loop {}
-// TODO: Change some stuff from hardcoded to user defined
+// TODO: Change some stuff from hardcoded to config file
+// TODO: If bar ever crashed or makes problems maybe don't just unwrap everything
 
 extern crate time;
 extern crate rand;
@@ -23,8 +22,9 @@ const BG_SEC: &'static str = "#262626";
 const FG_COL: &'static str = "#9e9e9e";
 const FG_SEC: &'static str = "#616161";
 const HL_COL: &'static str = "#702020";
+const HL_SEC: &'static str = "#f9a825";
 const DISPLAY_COUNT: i32 = 2;
-const WORKSPACE_ICONS: [char; 5] = ['', '', '', '', ''];
+const WORKSPACE_ICONS: [char; 5] = ['', '', '', '', ''];
 
 const VOL_EXEC: &'static str = "$HOME/Scripts/volume_slider";
 const POW_EXEC: &'static str = "$HOME/Scripts/shutdown_menu";
@@ -38,7 +38,7 @@ struct Screen {
 
 
 fn add_reset(input: &String) -> String {
-    format!("{}%{{B{}}}%{{F{}}}%{{U{}+u}}", input, BG_COL, FG_COL, BG_COL)
+    format!("{}%{{B-}}%{{F-}}%{{T-}}", input)
 }
 
 fn get_ws(screen: &String) -> String {
@@ -57,18 +57,18 @@ fn get_ws(screen: &String) -> String {
             }
         }
         if ws_index == -1 {
-            result_str = format!("{}%{{B{}}}%{{F{}}}%{{U{}+u}}  {}  ", result_str, BG_COL, FG_SEC, BG_COL, icon);
+            result_str = format!("{}%{{B{}}}%{{F{}}}  {}  ", result_str, BG_COL, BG_SEC, icon);
         }
         else {
             if workspaces[ws_index as usize].visible {
-                result_str = format!("{}%{{B{}}}%{{F{}}}%{{U{}+u}}  {}  ", result_str, BG_SEC, FG_COL, HL_COL, icon);
+                result_str = format!("{}%{{B{}}}%{{F{}}}  {}  ", result_str, BG_COL, HL_COL, icon);
             }
             else {
                 if workspaces[ws_index as usize].urgent {
-                    result_str = format!("{}%{{B{}}}%{{F{}}}%{{U{}+u}}  {}  ", result_str, BG_COL, HL_COL, BG_SEC, icon);
+                    result_str = format!("{}%{{B{}}}%{{F{}}}  {}  ", result_str, BG_COL, HL_SEC, icon);
                 }
                 else {
-                    result_str = format!("{}%{{B{}}}%{{F{}}}%{{U{}+u}}  {}  ", result_str, BG_COL, FG_COL, BG_SEC, icon);
+                    result_str = format!("{}%{{B{}}}%{{F{}}}  {}  ", result_str, BG_COL, FG_SEC, icon);
                 }
             }
         }
@@ -78,8 +78,8 @@ fn get_ws(screen: &String) -> String {
 
 fn get_date() -> String {
     let curr_time = time::now();
-    let curr_time_fmted = curr_time.strftime("%A, %d. %B %H:%M").unwrap();
-    add_reset(&format!("%{{B{}}}%{{U{}+u}}  {}  ", BG_SEC, BG_SEC, curr_time_fmted))
+    let curr_time_clock = curr_time.strftime("%H:%M").unwrap();
+    add_reset(&format!("%{{B{}}}%{{F{}}}%{{T3}}    {}    ", BG_SEC, FG_COL, curr_time_clock))
 }
 
 fn get_not(screen: &String) -> String {
@@ -90,7 +90,7 @@ fn get_not(screen: &String) -> String {
     stream.read_to_string(&mut response).unwrap();
     if response.starts_with("{") {
         let not_script = format!("{} {} &", NOT_EXEC, screen);
-        return add_reset(&format!("%{{B{}}}%{{F{}}}%{{U{}+u}}%{{A:{}:}}    %{{A}}", HL_COL, FG_COL, HL_COL, not_script));
+        return add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}    %{{A}}", HL_COL, FG_COL, not_script));
     }
     String::new()
 }
@@ -103,7 +103,7 @@ fn get_vol(screen: &String) -> String {
             let vol_end = &out_str[..out_str.find("%").unwrap()];
             let vol = format!("{:>3}", &vol_end[vol_end.rfind("[").unwrap()+1..]);
             let vol_script = format!("{} {} &", VOL_EXEC, screen);
-            add_reset(&format!("%{{B{}}}%{{F{}}}%{{U{}+u}}%{{A:{}:}}   {}  %{{A}}", BG_SEC, FG_COL, BG_SEC, vol_script, vol))
+            add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}   {}  %{{A}}", BG_SEC, FG_COL, vol_script, vol))
         },
         Err(_) => String::new(),
     }
@@ -111,7 +111,7 @@ fn get_vol(screen: &String) -> String {
 
 fn get_pow(screen: &String, icon: &char) -> String {
     let pow_script = format!("{} {} &", POW_EXEC, screen);
-    add_reset(&format!("%{{B{}}}%{{F{}}}%{{U{}+u}}%{{A:{}:}}  {}  %{{A}}", BG_SEC, FG_COL, BG_SEC, pow_script, icon))
+    add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}  {}  %{{A}}", BG_SEC, FG_COL, pow_script, icon))
 }
 
 fn get_screens() -> Vec<Screen> {
@@ -132,10 +132,8 @@ fn get_screens() -> Vec<Screen> {
 fn main() {
     // Stuff I still need to implement
     let barh = 35;
-    let ulnh = "3";
-    let boff = "-2";
-    let font0 = "Source Code Pro Semibold-12";
-    let font1 = "FontAwesome-15";
+    let font1 = "Source Code Pro Semibold-14";
+    let font2 = "FontAwesome-18";
     let pow_icon_choices = ['', '', '', ''];
     let mut rng = thread_rng();
     let pow_icon = rng.choose(&pow_icon_choices).unwrap().clone();
@@ -146,12 +144,10 @@ fn main() {
         let name = screen.name.clone();
         let xres = screen.xres.clone();
         let xoffset = screen.xoffset.clone();
-        println!("Should start threads here: ");
         bar_threads.push(thread::spawn(move || {
-            println!("Started thread for screen {}", name);
             let rect = format!("{}x{}+{}+0", xres, barh, xoffset);
             let mut lemonbar = Command::new("lemonbar")
-                .args(&["-g", &rect[..], "-o", boff, "-u", ulnh, "-F", FG_COL, "-B", BG_COL, "-U", BG_COL, "-f", font0, "-f", font1])
+                .args(&["-g", &rect[..], "-F", FG_COL, "-B", BG_COL, "-f", font1, "-f", font2])
                 .stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
             let stdin = lemonbar.stdin.as_mut().unwrap();
             let stdout = lemonbar.stdout.take().unwrap();
