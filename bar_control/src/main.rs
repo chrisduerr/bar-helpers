@@ -1,34 +1,24 @@
-// TODO: Change some stuff from hardcoded to config file
 // TODO: If bar ever crashed or makes problems maybe don't just unwrap everything
+// TODO: Use channels and events instead of timed polling
 
 extern crate time;
 extern crate rand;
+extern crate toml;
 extern crate i3ipc;
 extern crate regex;
+
+mod config;
 
 use std::thread;
 use regex::Regex;
 use std::time::Duration;
 use i3ipc::I3Connection;
 use std::io::prelude::*;
-use rand::{thread_rng, Rng};
 use std::process::{Command, Stdio};
 use std::os::unix::net::UnixStream;
+use config::{Config, Executables, Colors};
 use std::os::unix::io::{FromRawFd, IntoRawFd};
 
-
-const BG_COL: &'static str = "#121212";
-const BG_SEC: &'static str = "#262626";
-const FG_COL: &'static str = "#9e9e9e";
-const FG_SEC: &'static str = "#616161";
-const HL_COL: &'static str = "#702020";
-const HL_SEC: &'static str = "#f9a825";
-const DISPLAY_COUNT: i32 = 2;
-const WORKSPACE_ICONS: [char; 5] = ['', '', '', '', ''];
-
-const VOL_EXEC: &'static str = "$HOME/Scripts/volume_slider";
-const POW_EXEC: &'static str = "$HOME/Scripts/shutdown_menu";
-const NOT_EXEC: &'static str = "$HOME/Scripts/notification_popup";
 
 struct Screen {
     name: String,
@@ -41,34 +31,37 @@ fn add_reset(input: &String) -> String {
     format!("{}%{{B-}}%{{F-}}%{{T-}}", input)
 }
 
-fn get_ws(screen: &String) -> String {
-    let mut conn = I3Connection::connect().unwrap();
+fn get_ws(screen: &String, config: &Config, colors: &Colors, display_count: &i32, i3con: &mut I3Connection) -> String {
     let mut result_str = String::new();
-    let workspaces = conn.get_workspaces().unwrap().workspaces;
+    let workspaces = i3con.get_workspaces().unwrap().workspaces;
 
-    for (i, icon) in WORKSPACE_ICONS.iter().enumerate() {
+    for (i, icon) in config.workspace_icons.chars().enumerate() {
         let mut ws_index: i8 = -1;
         for (x, workspace) in workspaces.iter().enumerate() {
             if &workspace.output == screen {
-                let normed_ws_num = (workspace.num - 1) / DISPLAY_COUNT;
+                let normed_ws_num = (workspace.num - 1) / display_count;
                 if normed_ws_num == i as i32 {
                     ws_index = x as i8;
                 }
             }
         }
         if ws_index == -1 {
-            result_str = format!("{}%{{B{}}}%{{F{}}}  {}  ", result_str, BG_COL, BG_SEC, icon);
+            result_str = format!("{}%{{B{}}}%{{F{}}}  {}  ",
+                                 result_str, colors.bg_col, colors.bg_sec, icon);
         }
         else {
             if workspaces[ws_index as usize].visible {
-                result_str = format!("{}%{{B{}}}%{{F{}}}  {}  ", result_str, BG_COL, HL_COL, icon);
+                result_str = format!("{}%{{B{}}}%{{F{}}}  {}  ",
+                                     result_str, colors.bg_col, colors.hl_col, icon);
             }
             else {
                 if workspaces[ws_index as usize].urgent {
-                    result_str = format!("{}%{{B{}}}%{{F{}}}  {}  ", result_str, BG_COL, HL_SEC, icon);
+                    result_str = format!("{}%{{B{}}}%{{F{}}}  {}  ",
+                                         result_str, colors.bg_col, colors.hl_col, icon);
                 }
                 else {
-                    result_str = format!("{}%{{B{}}}%{{F{}}}  {}  ", result_str, BG_COL, FG_SEC, icon);
+                    result_str = format!("{}%{{B{}}}%{{F{}}}  {}  ",
+                                         result_str, colors.bg_col, colors.fg_sec, icon);
                 }
             }
         }
@@ -76,42 +69,46 @@ fn get_ws(screen: &String) -> String {
     add_reset(&result_str)
 }
 
-fn get_date() -> String {
+fn get_date(colors: &Colors) -> String {
     let curr_time = time::now();
     let curr_time_clock = curr_time.strftime("%H:%M").unwrap();
-    add_reset(&format!("%{{B{}}}%{{F{}}}%{{T3}}    {}    ", BG_SEC, FG_COL, curr_time_clock))
+    add_reset(&format!("%{{B{}}}%{{F{}}}%{{T3}}    {}    ",
+                       colors.bg_sec, colors.fg_col, curr_time_clock))
 }
 
-fn get_not(screen: &String) -> String {
+fn get_not(screen: &String, colors: &Colors, exec: &Executables) -> String {
     // Connect to server and check for message
     let mut stream = UnixStream::connect("/tmp/leechnot.sock").unwrap();
     stream.write_all(b"show").unwrap();
     let mut response = String::new();
     stream.read_to_string(&mut response).unwrap();
     if response.starts_with("{") {
-        let not_script = format!("{} {} &", NOT_EXEC, screen);
-        return add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}    %{{A}}", HL_COL, FG_COL, not_script));
+        let not_script = format!("{} {} &", exec.not, screen);
+        return add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}    %{{A}}",
+                                  colors.hl_col, colors.fg_col, not_script));
     }
     String::new()
 }
 
-fn get_vol(screen: &String) -> String {
+fn get_vol(screen: &String, colors: &Colors, exec: &Executables) -> String {
     let cmd_out = Command::new("amixer").args(&["-D", "pulse", "get", "Master"]).output();
     match cmd_out {
         Ok(out) => {
             let out_str = String::from_utf8_lossy(&out.stdout);
             let vol_end = &out_str[..out_str.find("%").unwrap()];
             let vol = format!("{:>3}", &vol_end[vol_end.rfind("[").unwrap()+1..]);
-            let vol_script = format!("{} {} &", VOL_EXEC, screen);
-            add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}   {}  %{{A}}", BG_SEC, FG_COL, vol_script, vol))
+            let vol_script = format!("{} {} &", exec.vol, screen);
+            add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}   {}  %{{A}}",
+                               colors.bg_sec, colors.fg_col, vol_script, vol))
         },
         Err(_) => String::new(),
     }
 }
 
-fn get_pow(screen: &String, icon: &char) -> String {
-    let pow_script = format!("{} {} &", POW_EXEC, screen);
-    add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}  {}  %{{A}}", BG_SEC, FG_COL, pow_script, icon))
+fn get_pow(screen: &String, config: &Config, colors: &Colors, exec: &Executables) -> String {
+    let pow_script = format!("{} {} &", exec.pow, screen);
+    add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}  {}  %{{A}}",
+                       colors.bg_sec, colors.fg_col, pow_script, config.power_icon))
 }
 
 fn get_screens() -> Vec<Screen> {
@@ -130,38 +127,39 @@ fn get_screens() -> Vec<Screen> {
 }
 
 fn main() {
-    // Stuff I still need to implement
-    let barh = 35;
-    let font1 = "Source Code Pro Semibold-14";
-    let font2 = "FontAwesome-18";
-    let pow_icon_choices = ['', '', '', ''];
-    let mut rng = thread_rng();
-    let pow_icon = rng.choose(&pow_icon_choices).unwrap().clone();
+    let screens = get_screens();
+    let display_count = screens.len() as i32;
 
     let mut bar_threads = Vec::new();
-    let screens = get_screens();
     for screen in screens.iter() {
+        let config = config::get_config();
+        let colors = config::get_colors();
+        let exec = config::get_executables();
         let name = screen.name.clone();
         let xres = screen.xres.clone();
         let xoffset = screen.xoffset.clone();
+        let mut i3con = I3Connection::connect().unwrap();
         bar_threads.push(thread::spawn(move || {
-            let rect = format!("{}x{}+{}+0", xres, barh, xoffset);
+            let rect = format!("{}x{}+{}+0", xres, config.height, xoffset);
             let mut lemonbar = Command::new("lemonbar")
-                .args(&["-g", &rect[..], "-F", FG_COL, "-B", BG_COL, "-f", font1, "-f", font2])
+                .args(&["-g", &rect[..],
+                      "-F", &colors.fg_col[..], "-B", &colors.bg_col[..],
+                      "-f", &config.font[..], "-f", &config.icon_font[..]])
                 .stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
             let stdin = lemonbar.stdin.as_mut().unwrap();
             let stdout = lemonbar.stdout.take().unwrap();
+
             thread::spawn(move || {
                 unsafe {
                     let _ = Command::new("sh").stdin(Stdio::from_raw_fd(stdout.into_raw_fd())).spawn();
                 }
             });
             loop {
-                let date_block = get_date();
-                let ws_block = get_ws(&name);
-                let not_block = get_not(&name);
-                let vol_block = get_vol(&name);
-                let pow_block = get_pow(&name, &pow_icon);
+                let date_block = get_date(&colors);
+                let ws_block = get_ws(&name, &config, &colors, &display_count, &mut i3con);
+                let not_block = get_not(&name, &colors, &exec);
+                let vol_block = get_vol(&name, &colors, &exec);
+                let pow_block = get_pow(&name, &config, &colors, &exec);
 
                 let bar_string = format!("{}     {}%{{c}}{}%{{r}}{}     {}\n", pow_block, ws_block, date_block, not_block, vol_block);
                 let _ = stdin.write((&bar_string[..]).as_bytes());

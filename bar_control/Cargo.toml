@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["UndeadLeech <programming@undeadleech.de>"]
 
 [dependencies]
+toml = "*"
 time = "*"
 rand = "*"
 regex = "*"
