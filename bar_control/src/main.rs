@@ -1,6 +1,4 @@
 // TODO: If bar ever crashed or makes problems maybe don't just unwrap everything
-// TODO: Use channels and events instead of timed polling
-// TODO: Use templates inside config to configure elements
 
 extern crate time;
 extern crate rand;
@@ -133,36 +131,50 @@ fn main() {
 
     let mut bar_threads = Vec::new();
     for screen in screens.iter() {
+        // Load user settings from file
         let config = config::get_config();
         let colors = config::get_colors();
         let exec = config::get_executables();
+
+        // Clone screen props so they're accessible by all threads
         let name = screen.name.clone();
         let xres = screen.xres.clone();
         let xoffset = screen.xoffset.clone();
-        let mut i3con = I3Connection::connect().unwrap();
-        bar_threads.push(thread::spawn(move || {
-            let rect = format!("{}x{}+{}+0", xres, config.height, xoffset);
-            let mut lemonbar = Command::new("lemonbar")
-                .args(&["-g", &rect[..],
-                      "-F", &colors.fg_col[..], "-B", &colors.bg_col[..],
-                      "-f", &config.font[..], "-f", &config.icon_font[..]])
-                .stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
-            let stdin = lemonbar.stdin.as_mut().unwrap();
-            let stdout = lemonbar.stdout.take().unwrap();
 
-            thread::spawn(move || {
-                unsafe {
-                    let _ = Command::new("sh").stdin(Stdio::from_raw_fd(stdout.into_raw_fd())).spawn();
-                }
-            });
+        // Start i3ipc connection
+        let mut i3con = I3Connection::connect().unwrap();
+
+        // Get static pow block
+        let pow_block = get_pow(&name, &config, &colors, &exec);
+
+        // Start lemonbar
+        let rect = format!("{}x{}+{}+0", xres, config.height, xoffset);
+        let mut lemonbar = Command::new("lemonbar")
+            .args(&["-g", &rect[..],
+                  "-F", &colors.fg_col[..], "-B", &colors.bg_col[..],
+                  "-f", &config.font[..], "-f", &config.icon_font[..]])
+            .stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
+
+        // Thread that controls executing lemonbar stdout
+        let stdout = lemonbar.stdout.take().unwrap();
+        thread::spawn(move || {
+            unsafe {
+                let _ = Command::new("sh")
+                                .stdin(Stdio::from_raw_fd(stdout.into_raw_fd())).spawn();
+            }
+        });
+
+        // Thread that writes to lemonbar stdin
+        bar_threads.push(thread::spawn(move || {
+            let stdin = lemonbar.stdin.as_mut().unwrap();
             loop {
                 let date_block = get_date(&colors);
                 let ws_block = get_ws(&name, &config, &colors, &display_count, &mut i3con);
                 let not_block = get_not(&name, &colors, &exec);
                 let vol_block = get_vol(&name, &colors, &exec);
-                let pow_block = get_pow(&name, &config, &colors, &exec);
 
-                let bar_string = format!("{}     {}%{{c}}{}%{{r}}{}     {}\n", pow_block, ws_block, date_block, not_block, vol_block);
+                let bar_string = format!("{}     {}%{{c}}{}%{{r}}{}     {}\n",
+                                         pow_block, ws_block, date_block, not_block, vol_block);
                 let _ = stdin.write((&bar_string[..]).as_bytes());
 
                 thread::sleep(Duration::from_millis(100));
