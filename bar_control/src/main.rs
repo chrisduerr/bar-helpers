@@ -1,5 +1,6 @@
 // TODO: If bar ever crashed or makes problems maybe don't just unwrap everything
 // TODO: Use channels and events instead of timed polling
+// TODO: Use templates inside config to configure elements
 
 extern crate time;
 extern crate rand;
@@ -52,7 +53,7 @@ fn get_ws(screen: &String, config: &Config, colors: &Colors, display_count: &i32
         else {
             if workspaces[ws_index as usize].visible {
                 result_str = format!("{}%{{B{}}}%{{F{}}}  {}  ",
-                                     result_str, colors.bg_col, colors.hl_col, icon);
+                                     result_str, colors.bg_sec, colors.fg_col, icon);
             }
             else {
                 if workspaces[ws_index as usize].urgent {
