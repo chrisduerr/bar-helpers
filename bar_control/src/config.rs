@@ -1,4 +1,5 @@
 use toml;
+use std::env::home_dir;
 use std::fs::File;
 use std::io::prelude::*;
 use rand::{thread_rng, Rng};
@@ -31,8 +32,14 @@ pub fn get_value(toml: &toml::Value, value: &str) -> toml::Value {
     toml.lookup(value).unwrap().clone()
 }
 
+pub fn get_config_path() -> String {
+    let home_path = home_dir().unwrap();
+    let home_str = home_path.to_str().unwrap();
+    format!("{}/.config/undeadlemon.toml", home_str)
+}
+
 pub fn get_executables() -> Executables {
-    let mut f = File::open("config.toml").unwrap();
+    let mut f = File::open(get_config_path()).unwrap();
     let mut buf = String::new();
     let _ = f.read_to_string(&mut buf);
 
@@ -45,7 +52,7 @@ pub fn get_executables() -> Executables {
 }
 
 pub fn get_colors() -> Colors {
-    let mut f = File::open("config.toml").unwrap();
+    let mut f = File::open(get_config_path()).unwrap();
     let mut buf = String::new();
     let _ = f.read_to_string(&mut buf);
 
@@ -60,7 +67,7 @@ pub fn get_colors() -> Colors {
 }
 
 pub fn get_config() -> Config {
-    let mut f = File::open("config.toml").unwrap();
+    let mut f = File::open(get_config_path()).unwrap();
     let mut buf = String::new();
     let _ = f.read_to_string(&mut buf);
 
