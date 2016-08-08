@@ -84,7 +84,7 @@ fn get_not(screen: &String, colors: &Colors, exec: &Executables) -> String {
     if response.starts_with("{") {
         let not_script = format!("{} {} &", exec.not, screen);
         return add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}    %{{A}}",
-                                  colors.hl_col, colors.fg_col, not_script));
+                                  colors.hl_col, colors.bg_col, not_script));
     }
     String::new()
 }
