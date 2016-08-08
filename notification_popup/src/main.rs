@@ -1,15 +1,17 @@
 extern crate gtk;
+extern crate pango;
 extern crate regex;
 extern crate rustc_serialize;
 
 use gtk::prelude::*;
 use gtk::{Window, WindowType, Box, Button, Orientation, Align, Label};
+use pango::FontDescription;
 use regex::Regex;
 use rustc_serialize::json;
 use std::env;
 use std::process::Command;
 
-static MAX_LINE_LENGTH: usize = 50;
+static MAX_LINE_LENGTH: usize = 30;
 
 
 #[derive(RustcDecodable)]
@@ -111,6 +113,8 @@ fn draw_notifications(cont: &Box, win: &Window) {
         label.set_halign(Align::Start);
 
         let not_but = Button::new_with_label(&format_body(not.not.body.clone())[..]);
+        let font = FontDescription::from_string("Fira Mono 12");
+        WidgetExt::override_font(&not_but, Some(&font));
         cont.pack_start(&label, true, true, 0);
         cont.pack_start(&not_but, true, true, 0);
 

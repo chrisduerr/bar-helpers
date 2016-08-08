@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["UndeadLeech <programming@undeadleech.de>"]
 
 [dependencies]
+pango = "0.1.0"
 regex = "0.1.0"
 rustc-serialize = "0.3.19"
 
