@@ -40,8 +40,6 @@ fn get_all_nots() -> Vec<NotificationsList> {
     let out_str = String::from_utf8_lossy(&output.stdout);
 
     // Convert to Decodable str
-    let out_str = out_str.replace(": u'", ": \"");
-    let out_str = out_str.replace("'", "\"");
     let out_str = format!("[{}]", out_str.trim());
 
     json::decode(&out_str).unwrap()
