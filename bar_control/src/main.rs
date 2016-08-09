@@ -77,7 +77,10 @@ fn get_date(colors: &Colors) -> String {
 
 fn get_not(screen: &String, colors: &Colors, exec: &Executables) -> String {
     // Connect to server and check for message
-    let mut stream = UnixStream::connect("/tmp/leechnot.sock").unwrap();
+    let mut stream = match UnixStream::connect("/tmp/leechnot.sock") {
+        Ok(us) => us,
+        Err(_) => return String::new(),
+    };
     stream.write_all(b"show").unwrap();
     let mut response = String::new();
     stream.read_to_string(&mut response).unwrap();
