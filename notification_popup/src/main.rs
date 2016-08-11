@@ -1,3 +1,5 @@
+// TODO: Fix sensor_notifications bug
+
 extern crate gtk;
 extern crate pango;
 extern crate regex;
