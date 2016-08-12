@@ -56,9 +56,9 @@ fn is_running() -> bool {
                          .args(&["-ax"])
                          .output().unwrap();
     let out_str = String::from_utf8_lossy(&output.stdout);
-    let re = Regex::new("[0-9]+:[0-9]+ +[^ ]*volume_slider ").unwrap();
+    let re = Regex::new("[0-9]+:[0-9]+ [^ ]*volume_slider ").unwrap();
     let nbr_running = re.find_iter(&out_str).count();
-    (nbr_running >= 1)
+    (nbr_running > 1)
 }
 
 fn gotta_kill_em_all() {
