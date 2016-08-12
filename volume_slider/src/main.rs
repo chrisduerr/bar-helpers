@@ -1,54 +1,36 @@
-#[macro_use]
-extern crate qmlrs;
+extern crate gtk;
 extern crate regex;
 
+use gtk::prelude::*;
+use gtk::{Window, WindowType, Box, Scale, Adjustment, Orientation};
 use regex::Regex;
 use std::env;
 use std::process::Command;
 
-
-// QTQ Accessible Methods:
-struct Volume;
-impl Volume {
-    fn get_volume(&self) -> i64 {
-        let output = Command::new("amixer")
-                             .args(&["-D", "pulse", "get", "Master"])
-                             .output();
-        match output {
-            Ok(out) => {
-                let stdout_str = String::from_utf8_lossy(&out.stdout);
-                let re = Regex::new("\\[([0-9]+)%\\]").unwrap();
-                match re.captures(&stdout_str) {
-                    Some(caps) => caps.at(1).unwrap().parse().unwrap(),
-                    None => 0,
-                }
-            },
-            Err(_) => 0,
-        }
-    }
-
-    fn set_volume(&self, level: i64) {
-        let vol_perc = format!("{}%", level);
-        Command::new("amixer")
-                .args(&["-q", "-D", "pulse", "set", "Master", &vol_perc[..]])
-                .spawn().unwrap();
-    }
-
-    fn get_title(&self) -> String {
-        let args: Vec<_> = env::args().collect();
-        if args.len() <= 1 {
-            panic!("Could not find output in command line arguments.");
-        }
-        format!("volume_slider-{}", args[1])
+fn get_current_volume() -> f64 {
+    let output = Command::new("amixer")
+                         .args(&["-D", "pulse", "get", "Master"])
+                         .output();
+    match output {
+        Ok(out) => {
+            let stdout_str = String::from_utf8_lossy(&out.stdout);
+            let re = Regex::new("\\[([0-9]+)%\\]").unwrap();
+            match re.captures(&stdout_str) {
+                Some(caps) => caps.at(1).unwrap().parse().unwrap(),
+                None => 0.0,
+            }
+        },
+        Err(_) => 0.0,
     }
 }
 
-Q_OBJECT! { Volume:
-    slot fn get_volume();
-    slot fn set_volume(i64);
-    slot fn get_title();
+fn set_volume(level: f64) {
+    let vol_trunc = level as u8;
+    let vol_perc = format!("{}%", vol_trunc);
+    Command::new("amixer")
+            .args(&["-q", "-D", "pulse", "set", "Master", &vol_perc[..]])
+            .spawn().unwrap();
 }
-
 
 // Check if Scale already is running
 fn is_running() -> bool {
@@ -65,24 +47,46 @@ fn gotta_kill_em_all() {
     Command::new("killall").arg("volume_slider").spawn().unwrap();
 }
 
-
 // Create a new scale
 // If one is already running -> KILL IT
 fn main() {
     if is_running() {
         gotta_kill_em_all();
-        println!("Already running, closing all instances...");
-        return
+        return;
     }
 
-    // Load QML
-    let mut exec_path = env::current_exe().unwrap();
-    exec_path.pop();
-    let qml_path = format!("{}/volume_slider.qml", exec_path.to_str().unwrap());
-    let mut engine = qmlrs::Engine::new();
+    // Check if screen was specified
+    let args: Vec<_> = env::args().collect();
+    if args.len() <= 1 {
+        return;
+    }
+    let wm_name = format!("volume_slider-{}", args[1]);
 
-    engine.set_property("volume", Volume);
-    engine.load_local_file(qml_path);
+    // Init GTK and Window
+    gtk::init().unwrap();
+    let window = Window::new(WindowType::Toplevel);
+    window.set_title(&wm_name[..]);
+    window.set_default_size(350, 50);
 
-    engine.exec();
+    // Create Scale
+    let adj = Adjustment::new(get_current_volume(), 0.0, 101.0, 1.0, 1.0, 1.0);
+    let scale = Scale::new(Orientation::Horizontal, Some(&adj));
+    scale.set_draw_value(false);
+
+    // Create Container
+    let cont = Box::new(Orientation::Horizontal, 0);
+    cont.pack_start(&scale, true, true, 10);
+    window.add(&cont);
+    window.show_all();
+
+    window.connect_delete_event(|_, _| {
+        gtk::main_quit();
+        Inhibit(false)
+    });
+
+    scale.connect_value_changed(move |scale| {
+        set_volume(scale.get_value());
+    });
+
+    gtk::main();
 }

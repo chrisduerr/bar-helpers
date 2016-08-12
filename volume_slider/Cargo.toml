@@ -4,5 +4,5 @@ version = "0.1.0"
 authors = ["UndeadLeech <programming@undeadleech.de>"]
 
 [dependencies]
-qmlrs = "0.1.1"
+gtk = "0.1.0"
 regex = "0.1.0"
