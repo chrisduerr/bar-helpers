@@ -1,5 +1,3 @@
-// TODO: If bar ever crashed or makes problems maybe don't just unwrap everything
-
 extern crate time;
 extern crate rand;
 extern crate toml;
@@ -30,10 +28,9 @@ fn add_reset(input: &String) -> String {
     format!("{}%{{B-}}%{{F-}}%{{T-}}", input)
 }
 
-fn get_ws(screen: &String, config: &Config, colors: &Colors, display_count: &i32, i3con: &mut I3Connection) -> String {
+fn get_ws(screen: &String, config: &Config, colors: &Colors,
+          display_count: &i32, workspaces: &Vec<i3ipc::reply::Workspace>) -> String {
     let mut result_str = String::new();
-    let workspaces = i3con.get_workspaces().unwrap().workspaces;
-
     for (i, icon) in config.workspace_icons.chars().enumerate() {
         let mut ws_index: i8 = -1;
         for (x, workspace) in workspaces.iter().enumerate() {
@@ -46,21 +43,21 @@ fn get_ws(screen: &String, config: &Config, colors: &Colors, display_count: &i32
         }
         if ws_index == -1 {
             result_str = format!("{}%{{B{}}}%{{F{}}}  {}  ",
-                                 result_str, colors.bg_col, colors.bg_sec, icon);
+                            result_str, colors.bg_col, colors.bg_sec, icon);
         }
         else {
             if workspaces[ws_index as usize].visible {
                 result_str = format!("{}%{{B{}}}%{{F{}}}  {}  ",
-                                     result_str, colors.bg_sec, colors.fg_col, icon);
+                                result_str, colors.bg_sec, colors.fg_col, icon);
             }
             else {
                 if workspaces[ws_index as usize].urgent {
                     result_str = format!("{}%{{B{}}}%{{F{}}}  {}  ",
-                                         result_str, colors.bg_col, colors.hl_col, icon);
+                                    result_str, colors.bg_col, colors.hl_col, icon);
                 }
                 else {
                     result_str = format!("{}%{{B{}}}%{{F{}}}  {}  ",
-                                         result_str, colors.bg_col, colors.fg_sec, icon);
+                                    result_str, colors.bg_col, colors.fg_sec, icon);
                 }
             }
         }
@@ -70,7 +67,10 @@ fn get_ws(screen: &String, config: &Config, colors: &Colors, display_count: &i32
 
 fn get_date(colors: &Colors) -> String {
     let curr_time = time::now();
-    let curr_time_clock = curr_time.strftime("%H:%M").unwrap();
+    let curr_time_clock = match curr_time.strftime("%H:%M") {
+        Ok(fmt) => fmt,
+        Err(_) => return String::new(),
+    };
     add_reset(&format!("%{{B{}}}%{{F{}}}%{{T3}}    {}    ",
                        colors.bg_sec, colors.fg_col, curr_time_clock))
 }
@@ -81,9 +81,9 @@ fn get_not(screen: &String, colors: &Colors, exec: &Executables) -> String {
         Ok(us) => us,
         Err(_) => return String::new(),
     };
-    stream.write_all(b"show").unwrap();
+    let _ = stream.write_all(b"show");
     let mut response = String::new();
-    stream.read_to_string(&mut response).unwrap();
+    let _ = stream.read_to_string(&mut response);
     if response.starts_with("{") {
         let not_script = format!("{} {} &", exec.not, screen);
         return add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}    %{{A}}",
@@ -93,12 +93,20 @@ fn get_not(screen: &String, colors: &Colors, exec: &Executables) -> String {
 }
 
 fn get_vol(screen: &String, colors: &Colors, exec: &Executables) -> String {
-    let cmd_out = Command::new("amixer").args(&["-D", "pulse", "get", "Master"]).output();
+    let cmd_out = Command::new("amixer")
+        .args(&["-D", "pulse", "get", "Master"])
+        .output();
     match cmd_out {
         Ok(out) => {
             let out_str = String::from_utf8_lossy(&out.stdout);
-            let vol_end = &out_str[..out_str.find("%").unwrap()];
-            let vol = format!("{:>3}", &vol_end[vol_end.rfind("[").unwrap()+1..]);
+            let vol_end = &out_str[..match out_str.find("%") {
+                Some(pos) => pos,
+                None => return String::new(),
+            }];
+            let vol = format!("{:>3}", &vol_end[match vol_end.rfind("[") {
+                Some(pos) => pos,
+                None => return String::new(),
+            } +1..]);
             let vol_script = format!("{} {} &", exec.vol, screen);
             add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}   {}  %{{A}}",
                                colors.bg_sec, colors.fg_col, vol_script, vol))
@@ -115,9 +123,13 @@ fn get_pow(screen: &String, config: &Config, colors: &Colors, exec: &Executables
 
 fn get_screens() -> Vec<Screen> {
     let mut screens = Vec::new();
-    let xrandr_out = Command::new("xrandr").output().unwrap();
+    let xrandr_out = match Command::new("xrandr").output() {
+        Ok(out) => out,
+        Err(_) => return Vec::new(),
+    };
     let xrandr_str = String::from_utf8_lossy(&xrandr_out.stdout);
-    let screen_re = Regex::new("([a-zA-Z0-9-]*) connected ([0-9]*)x[^+]*\\+([0-9]*)").unwrap();
+    let screen_re = Regex::new("([a-zA-Z0-9-]*) connected ([0-9]*)x[^+]*\\+([0-9]*)")
+        .unwrap();
     for caps in screen_re.captures_iter(&xrandr_str) {
         screens.push(Screen {
             name: caps.at(1).unwrap().to_owned(),
@@ -126,6 +138,22 @@ fn get_screens() -> Vec<Screen> {
         });
     }
     screens
+}
+
+fn i3ipc_get_workspaces(i3con: &mut I3Connection) -> Vec<i3ipc::reply::Workspace> {
+    match i3con.get_workspaces() {
+        Ok(gw) => gw.workspaces,
+        Err(_) => {
+            *i3con = match I3Connection::connect() {
+                Ok(i3c) => i3c,
+                Err(_) => return Vec::new(),
+            };
+            match i3con.get_workspaces() {
+                Ok(gw) => gw.workspaces,
+                Err(_) => Vec::new(),
+            }
+        }
+    }
 }
 
 fn main() {
@@ -163,7 +191,8 @@ fn main() {
         thread::spawn(move || {
             unsafe {
                 let _ = Command::new("sh")
-                                .stdin(Stdio::from_raw_fd(stdout.into_raw_fd())).spawn();
+                                .stdin(Stdio::from_raw_fd(stdout.into_raw_fd()))
+                                .spawn();
             }
         });
 
@@ -171,13 +200,18 @@ fn main() {
         bar_threads.push(thread::spawn(move || {
             let stdin = lemonbar.stdin.as_mut().unwrap();
             loop {
+                // Get workspaces from i3ipc, restablish connection if necessary
+                let workspaces = i3ipc_get_workspaces(&mut i3con);
+
                 let date_block = get_date(&colors);
-                let ws_block = get_ws(&name, &config, &colors, &display_count, &mut i3con);
+                let ws_block = get_ws(&name, &config,
+                                      &colors, &display_count, &workspaces);
                 let not_block = get_not(&name, &colors, &exec);
                 let vol_block = get_vol(&name, &colors, &exec);
 
                 let bar_string = format!("{}     {}%{{c}}{}%{{r}}{}     {}\n",
-                                         pow_block, ws_block, date_block, not_block, vol_block);
+                                    pow_block, ws_block, date_block,
+                                    not_block, vol_block);
                 let _ = stdin.write((&bar_string[..]).as_bytes());
 
                 thread::sleep(Duration::from_millis(100));
