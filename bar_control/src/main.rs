@@ -42,22 +42,22 @@ fn get_ws(screen: &String, config: &Config, colors: &Colors,
             }
         }
         if ws_index == -1 {
-            result_str = format!("{}%{{B{}}}%{{F{}}}  {}  ",
-                            result_str, colors.bg_col, colors.bg_sec, icon);
+            result_str = format!("{}%{{B{}}}%{{F{}}}{}{}{}",
+                            result_str, colors.bg_col, colors.bg_sec, config.ws_pad, icon, config.ws_pad);
         }
         else {
             if workspaces[ws_index as usize].visible {
-                result_str = format!("{}%{{B{}}}%{{F{}}}  {}  ",
-                                result_str, colors.bg_sec, colors.fg_col, icon);
+                result_str = format!("{}%{{B{}}}%{{F{}}}{}{}{}",
+                                result_str, colors.bg_sec, colors.fg_col, config.ws_pad, icon, config.ws_pad);
             }
             else {
                 if workspaces[ws_index as usize].urgent {
-                    result_str = format!("{}%{{B{}}}%{{F{}}}  {}  ",
-                                    result_str, colors.bg_col, colors.hl_col, icon);
+                    result_str = format!("{}%{{B{}}}%{{F{}}}{}{}{}",
+                                    result_str, colors.bg_col, colors.hl_col, config.ws_pad, icon, config.ws_pad);
                 }
                 else {
-                    result_str = format!("{}%{{B{}}}%{{F{}}}  {}  ",
-                                    result_str, colors.bg_col, colors.fg_sec, icon);
+                    result_str = format!("{}%{{B{}}}%{{F{}}}{}{}{}",
+                                    result_str, colors.bg_col, colors.fg_sec, config.ws_pad, icon, config.ws_pad);
                 }
             }
         }
@@ -65,17 +65,17 @@ fn get_ws(screen: &String, config: &Config, colors: &Colors,
     add_reset(&result_str)
 }
 
-fn get_date(colors: &Colors) -> String {
+fn get_date(config: &Config, colors: &Colors) -> String {
     let curr_time = time::now();
     let curr_time_clock = match curr_time.strftime("%H:%M") {
         Ok(fmt) => fmt,
         Err(_) => return String::new(),
     };
-    add_reset(&format!("%{{B{}}}%{{F{}}}%{{T3}}    {}    ",
-                       colors.bg_sec, colors.fg_col, curr_time_clock))
+    add_reset(&format!("%{{B{}}}%{{F{}}}{}{}{}",
+                       colors.bg_sec, colors.fg_col, config.dat_pad, curr_time_clock, config.dat_pad))
 }
 
-fn get_not(screen: &String, colors: &Colors, exec: &Executables) -> String {
+fn get_not(screen: &String, config: &Config, colors: &Colors, exec: &Executables) -> String {
     // Connect to server and check for message
     let mut stream = match UnixStream::connect("/tmp/leechnot.sock") {
         Ok(us) => us,
@@ -86,13 +86,13 @@ fn get_not(screen: &String, colors: &Colors, exec: &Executables) -> String {
     let _ = stream.read_to_string(&mut response);
     if response.starts_with("{") {
         let not_script = format!("{} {} &", exec.not, screen);
-        return add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}    %{{A}}",
-                                  colors.hl_col, colors.bg_col, not_script));
+        return add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}%{{A}}",
+                                  colors.hl_col, colors.bg_col, not_script, config.not_pad, config.not_pad));
     }
     String::new()
 }
 
-fn get_vol(screen: &String, colors: &Colors, exec: &Executables) -> String {
+fn get_vol(screen: &String, config: &Config, colors: &Colors, exec: &Executables) -> String {
     let cmd_out = Command::new("amixer")
         .args(&["-D", "pulse", "get", "Master"])
         .output();
@@ -108,8 +108,8 @@ fn get_vol(screen: &String, colors: &Colors, exec: &Executables) -> String {
                 None => return String::new(),
             } +1..]);
             let vol_script = format!("{} {} &", exec.vol, screen);
-            add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}   {}  %{{A}}",
-                               colors.bg_sec, colors.fg_col, vol_script, vol))
+            add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}{} {}{}%{{A}}",
+                               colors.bg_sec, colors.fg_col, vol_script, config.vol_pad, vol, config.vol_pad))
         },
         Err(_) => String::new(),
     }
@@ -117,8 +117,8 @@ fn get_vol(screen: &String, colors: &Colors, exec: &Executables) -> String {
 
 fn get_pow(screen: &String, config: &Config, colors: &Colors, exec: &Executables) -> String {
     let pow_script = format!("{} {} &", exec.pow, screen);
-    add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}  {}  %{{A}}",
-                       colors.bg_sec, colors.fg_col, pow_script, config.power_icon))
+    add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}{}%{{A}}",
+                       colors.bg_sec, colors.fg_col, pow_script, config.pow_pad, config.power_icon, config.pow_pad))
 }
 
 fn get_screens() -> Vec<Screen> {
@@ -203,15 +203,14 @@ fn main() {
                 // Get workspaces from i3ipc, restablish connection if necessary
                 let workspaces = i3ipc_get_workspaces(&mut i3con);
 
-                let date_block = get_date(&colors);
-                let ws_block = get_ws(&name, &config,
-                                      &colors, &display_count, &workspaces);
-                let not_block = get_not(&name, &colors, &exec);
-                let vol_block = get_vol(&name, &colors, &exec);
+                let date_block = get_date(&config, &colors);
+                let ws_block = get_ws(&name, &config, &colors, &display_count, &workspaces);
+                let not_block = get_not(&name, &config, &colors, &exec);
+                let vol_block = get_vol(&name, &config, &colors, &exec);
 
-                let bar_string = format!("{}     {}%{{c}}{}%{{r}}{}     {}\n",
-                                    pow_block, ws_block, date_block,
-                                    not_block, vol_block);
+                let bar_string = format!("{}{}{}%{{c}}{}%{{r}}{}{}{}\n",
+                                    pow_block, config.gen_pad, ws_block, date_block,
+                                    not_block, config.gen_pad, vol_block);
                 let _ = stdin.write((&bar_string[..]).as_bytes());
 
                 thread::sleep(Duration::from_millis(100));

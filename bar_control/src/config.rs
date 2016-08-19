@@ -10,7 +10,13 @@ pub struct Config {
     pub power_icon: char,
     pub font: String,
     pub icon_font: String,
-    pub workspace_icons: String
+    pub workspace_icons: String,
+    pub gen_pad: String,
+    pub pow_pad: String,
+    pub ws_pad: String,
+    pub dat_pad: String,
+    pub not_pad: String,
+    pub vol_pad: String
 }
 
 pub struct Executables {
@@ -83,6 +89,12 @@ pub fn get_config() -> Config {
         power_icon: pow_icon.clone(),
         font: get_value(&config, "general.font").as_str().unwrap().to_owned(),
         icon_font: get_value(&config, "general.icon_font").as_str().unwrap().to_owned(),
-        workspace_icons: get_value(&config, "general.workspace_icons").as_str().unwrap().to_owned()
+        workspace_icons: get_value(&config, "general.workspace_icons").as_str().unwrap().to_owned(),
+        gen_pad: get_value(&config, "placeholders.general").as_str().unwrap().to_owned(),
+        pow_pad: get_value(&config, "placeholders.power").as_str().unwrap().to_owned(),
+        ws_pad: get_value(&config, "placeholders.workspace").as_str().unwrap().to_owned(),
+        dat_pad: get_value(&config, "placeholders.clock").as_str().unwrap().to_owned(),
+        not_pad: get_value(&config, "placeholders.notification").as_str().unwrap().to_owned(),
+        vol_pad: get_value(&config, "placeholders.volume").as_str().unwrap().to_owned()
     }
 }
