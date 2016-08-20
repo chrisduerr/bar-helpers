@@ -50,11 +50,15 @@ fn gotta_kill_em_all() {
 fn get_position(display: &String) -> (i32, i32) {
     let stdout = Command::new("xrandr").output().unwrap();
     let out = String::from_utf8_lossy(&stdout.stdout);
-    let re_string = format!("{}.*? ([0-9]*)x", display);
+    let re_string = format!("{}.*? ([0-9]*)\
+                            x[0-9]*\\+([0-9]*)", display);
     let re = Regex::new(&re_string[..]).unwrap();
-    let display_width = re.captures(&out).unwrap()
-                            .at(1).unwrap();
-    let x = display_width.parse::<i32>().unwrap() - 350;
+    let caps = re.captures(&out).unwrap();
+    let disp_wid = caps.at(1).unwrap()
+                            .parse::<i32>().unwrap();
+    let disp_off = caps.at(2).unwrap()
+                             .parse::<i32>().unwrap();
+    let x = disp_wid + disp_off - 350;
 
     (x, 30)
 }
