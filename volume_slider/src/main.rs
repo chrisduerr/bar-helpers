@@ -47,6 +47,18 @@ fn gotta_kill_em_all() {
     Command::new("killall").arg("volume_slider").spawn().unwrap();
 }
 
+fn get_position(display: &String) -> (i32, i32) {
+    let stdout = Command::new("xrandr").output().unwrap();
+    let out = String::from_utf8_lossy(&stdout.stdout);
+    let re_string = format!("{}.*? ([0-9]*)x", display);
+    let re = Regex::new(&re_string[..]).unwrap();
+    let display_width = re.captures(&out).unwrap()
+                            .at(1).unwrap();
+    let x = display_width.parse::<i32>().unwrap() - 350;
+
+    (x, 30)
+}
+
 // Create a new scale
 // If one is already running -> KILL IT
 fn main() {
@@ -60,12 +72,11 @@ fn main() {
     if args.len() <= 1 {
         return;
     }
-    let wm_name = format!("volume_slider-{}", args[1]);
 
     // Init GTK and Window
     gtk::init().unwrap();
     let window = Window::new(WindowType::Toplevel);
-    window.set_title(&wm_name[..]);
+    window.set_title("volume_slider");
     window.set_default_size(350, 50);
 
     // Create Scale
@@ -78,6 +89,8 @@ fn main() {
     cont.pack_start(&scale, true, true, 10);
     window.add(&cont);
     window.show_all();
+	let win_pos = get_position(&args[1]);
+    window.move_(win_pos.0, win_pos.1);
 
     window.connect_delete_event(|_, _| {
         gtk::main_quit();
