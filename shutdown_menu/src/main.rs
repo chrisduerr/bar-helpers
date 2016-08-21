@@ -12,12 +12,12 @@ use std::process::Command;
 
 // Shutdown
 fn shutdown() {
-    Command::new("shutdown").args(&["-h", "now"]).spawn().unwrap();
+    let _ = Command::new("shutdown").args(&["-h", "now"]).spawn();
 }
 
 // Reboot
 fn reboot() {
-    Command::new("shutdown").args(&["-r", "now"]).spawn().unwrap();
+    let _ = Command::new("shutdown").args(&["-r", "now"]).spawn();
 }
 
 // Check if already running
@@ -26,13 +26,27 @@ fn is_running() -> bool {
                          .args(&["-ax"])
                          .output().unwrap();
     let out_str = String::from_utf8_lossy(&output.stdout);
-    let re = Regex::new("shutdown_menu").unwrap();
+    let re = Regex::new("[0-9]+:[0-9]+ [^ ]*shutdown_menu ").unwrap();
     let nbr_running = re.find_iter(&out_str).count();
-    (nbr_running >= 2)
+    (nbr_running > 1)
 }
 
 fn gotta_kill_em_all() {
-    Command::new("killall").arg("shutdown_menu").spawn().unwrap();
+    let _ = Command::new("killall").arg("shutdown_menu").spawn();
+}
+
+fn get_position(display: &String) -> (i32, i32) {
+    let stdout = Command::new("xrandr").output().unwrap();
+    let out = String::from_utf8_lossy(&stdout.stdout);
+
+    let re_string = format!("{}.*? [0-9]*x[0-9]*\\+([0-9]*)",
+                            display);
+    let re = Regex::new(&re_string[..]).unwrap();
+    let caps = re.captures(&out).unwrap();
+
+    let disp_off = caps.at(1).unwrap().parse::<i32>().unwrap();
+
+    (disp_off, 30)
 }
 
 // Create a new
@@ -48,16 +62,15 @@ fn main() {
     if args.len() <= 1 {
         return;
     }
-    let wm_name = format!("shutdown_menu-{}", args[1]);
 
     // Init GTK and Window
     gtk::init().unwrap();
     let window = Window::new(WindowType::Toplevel);
-    window.set_title(&wm_name[..]);
+    window.set_title("shutdown_menu");
     window.set_default_size(125, 125);
 
     // Shutdown Button
-    let font = FontDescription::from_string("Source Sans Pro Bold 12");
+    let font = FontDescription::from_string("Fira Mono Bold 12");
     let shutdown_btn = Button::new_with_label(" SHUTDOWN ");
     WidgetExt::override_font(&shutdown_btn, Some(&font));
     let shutdown_box = Box::new(Orientation::Horizontal, 0);
@@ -73,8 +86,12 @@ fn main() {
     let cont = Box::new(Orientation::Vertical, 0);
     cont.pack_start(&shutdown_box, true, true, 10);
     cont.pack_start(&reboot_box, true, true, 10);
+
     window.add(&cont);
     window.show_all();
+
+    let win_pos = get_position(&args[1]);
+    window.move_(win_pos.0, win_pos.1);
 
     window.connect_delete_event(|_, _| {
         gtk::main_quit();
