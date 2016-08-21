@@ -27,9 +27,9 @@ fn get_current_volume() -> f64 {
 fn set_volume(level: f64) {
     let vol_trunc = level as u8;
     let vol_perc = format!("{}%", vol_trunc);
-    Command::new("amixer")
+    let _ = Command::new("amixer")
             .args(&["-q", "-D", "pulse", "set", "Master", &vol_perc[..]])
-            .spawn().unwrap();
+            .spawn();
 }
 
 // Check if Scale already is running
@@ -44,20 +44,20 @@ fn is_running() -> bool {
 }
 
 fn gotta_kill_em_all() {
-    Command::new("killall").arg("volume_slider").spawn().unwrap();
+    let _ = Command::new("killall").arg("volume_slider").spawn();
 }
 
 fn get_position(display: &String) -> (i32, i32) {
     let stdout = Command::new("xrandr").output().unwrap();
     let out = String::from_utf8_lossy(&stdout.stdout);
-    let re_string = format!("{}.*? ([0-9]*)\
-                            x[0-9]*\\+([0-9]*)", display);
+
+    let re_string = format!("{}.*? ([0-9]*)x[0-9]*\\+([0-9]*)",
+                            display);
     let re = Regex::new(&re_string[..]).unwrap();
     let caps = re.captures(&out).unwrap();
-    let disp_wid = caps.at(1).unwrap()
-                            .parse::<i32>().unwrap();
-    let disp_off = caps.at(2).unwrap()
-                             .parse::<i32>().unwrap();
+
+    let disp_wid = caps.at(1).unwrap().parse::<i32>().unwrap();
+    let disp_off = caps.at(2).unwrap().parse::<i32>().unwrap();
     let x = disp_wid + disp_off - 350;
 
     (x, 30)
@@ -84,15 +84,18 @@ fn main() {
     window.set_default_size(350, 50);
 
     // Create Scale
-    let adj = Adjustment::new(get_current_volume(), 0.0, 101.0, 1.0, 1.0, 1.0);
+    let adj = Adjustment::new(get_current_volume(),
+                              0.0, 101.0, 1.0, 1.0, 1.0);
     let scale = Scale::new(Orientation::Horizontal, Some(&adj));
     scale.set_draw_value(false);
 
     // Create Container
     let cont = Box::new(Orientation::Horizontal, 0);
     cont.pack_start(&scale, true, true, 10);
+
     window.add(&cont);
     window.show_all();
+
 	let win_pos = get_position(&args[1]);
     window.move_(win_pos.0, win_pos.1);
 

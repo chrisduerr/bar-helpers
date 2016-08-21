@@ -2,3 +2,5 @@
  - Clean up vol/pow/not code
  - Get "inspiration" from obshutdown and fix ugly pow menu
  - Rewrite notification server and fix ugly not menu
+ - Change constants to command line parameters (vol/pow/not bar height mainly)
+ - Make bar workspaces clickable
