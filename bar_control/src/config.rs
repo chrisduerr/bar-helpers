@@ -22,7 +22,8 @@ pub struct Config {
 pub struct Executables {
     pub pow: String,
     pub vol: String,
-    pub not: String
+    pub not: String,
+    pub ws: String
 }
 
 pub struct Colors {
@@ -54,6 +55,7 @@ pub fn get_executables() -> Executables {
         pow: get_value(&config, "exec.power").as_str().unwrap().to_owned(),
         vol: get_value(&config, "exec.volume").as_str().unwrap().to_owned(),
         not: get_value(&config, "exec.notifications").as_str().unwrap().to_owned(),
+        ws: get_value(&config, "exec.switch_focused_workspace").as_str().unwrap().to_owned()
     }
 }
 

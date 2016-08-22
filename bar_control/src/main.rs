@@ -28,36 +28,45 @@ fn add_reset(input: &String) -> String {
     format!("{}%{{B-}}%{{F-}}%{{T-}}", input)
 }
 
-fn get_ws(screen: &String, config: &Config, colors: &Colors,
+fn get_ws(screen: &String, config: &Config, colors: &Colors, exec: &Executables,
           display_count: &i32, workspaces: &Vec<i3ipc::reply::Workspace>) -> String {
     let mut result_str = String::new();
+
     for (i, icon) in config.workspace_icons.chars().enumerate() {
-        let mut ws_index: i8 = -1;
+        let mut ws_index = None;
         for (x, workspace) in workspaces.iter().enumerate() {
             if &workspace.output == screen {
                 let normed_ws_num = (workspace.num - 1) / display_count;
                 if normed_ws_num == i as i32 {
-                    ws_index = x as i8;
+                    ws_index = Some(x);
                 }
             }
         }
-        if ws_index == -1 {
-            result_str = format!("{}%{{B{}}}%{{F{}}}{}{}{}",
-                            result_str, colors.bg_col, colors.bg_sec, config.ws_pad, icon, config.ws_pad);
+
+        let ws_script = format!("{} {}", exec.ws, i + 1);
+
+        if ws_index.is_none() {
+            result_str = format!("{}%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}{}%{{A}}",
+                            result_str, colors.bg_col, colors.bg_sec,
+                            ws_script, config.ws_pad, icon, config.ws_pad);
         }
         else {
-            if workspaces[ws_index as usize].visible {
-                result_str = format!("{}%{{B{}}}%{{F{}}}{}{}{}",
-                                result_str, colors.bg_sec, colors.fg_col, config.ws_pad, icon, config.ws_pad);
+            let ws_index = ws_index.unwrap();
+            if workspaces[ws_index].visible {
+                result_str = format!("{}%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}{}%{{A}}",
+                                result_str, colors.bg_sec, colors.fg_col,
+                                ws_script, config.ws_pad, icon, config.ws_pad);
             }
             else {
-                if workspaces[ws_index as usize].urgent {
-                    result_str = format!("{}%{{B{}}}%{{F{}}}{}{}{}",
-                                    result_str, colors.bg_col, colors.hl_col, config.ws_pad, icon, config.ws_pad);
+                if workspaces[ws_index].urgent {
+                    result_str = format!("{}%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}{}%{{A}}",
+                                    result_str, colors.bg_col, colors.hl_col,
+                                    ws_script, config.ws_pad, icon, config.ws_pad);
                 }
                 else {
-                    result_str = format!("{}%{{B{}}}%{{F{}}}{}{}{}",
-                                    result_str, colors.bg_col, colors.fg_sec, config.ws_pad, icon, config.ws_pad);
+                    result_str = format!("{}%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}{}%{{A}}",
+                                    result_str, colors.bg_col, colors.fg_sec,
+                                    ws_script, config.ws_pad, icon, config.ws_pad);
                 }
             }
         }
@@ -204,7 +213,8 @@ fn main() {
                 let workspaces = i3ipc_get_workspaces(&mut i3con);
 
                 let date_block = get_date(&config, &colors);
-                let ws_block = get_ws(&name, &config, &colors, &display_count, &workspaces);
+                let ws_block = get_ws(&name, &config, &colors, &exec,
+                                      &display_count, &workspaces);
                 let not_block = get_not(&name, &config, &colors, &exec);
                 let vol_block = get_vol(&name, &config, &colors, &exec);
 

@@ -1,4 +1,3 @@
  - Get "inspiration" from obshutdown and fix ugly pow menu
  - Change constants to command line parameters (vol/pow bar height mainly)
- - Make bar workspaces clickable
  - Rewrite not completely (Pull directly from Rust Server instead of cli maybe?)
