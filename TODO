@@ -1,6 +1,4 @@
- - Use changes in volume_slider to fix everything else
- - Clean up vol/pow/not code
  - Get "inspiration" from obshutdown and fix ugly pow menu
- - Rewrite notification server and fix ugly not menu
- - Change constants to command line parameters (vol/pow/not bar height mainly)
+ - Change constants to command line parameters (vol/pow bar height mainly)
  - Make bar workspaces clickable
+ - Rewrite not completely (Pull directly from Rust Server instead of cli maybe?)
