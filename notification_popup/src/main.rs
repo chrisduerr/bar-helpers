@@ -1,5 +1,3 @@
-// TODO: Fix sensor_notifications bug
-
 extern crate gtk;
 extern crate pango;
 extern crate regex;
@@ -56,21 +54,6 @@ fn delete_not(id: u8) {
             .output().unwrap();
 }
 
-// Check if already running
-fn is_running() -> bool {
-    let output = Command::new("ps")
-                         .args(&["-ax"])
-                         .output().unwrap();
-    let out_str = String::from_utf8_lossy(&output.stdout);
-    let re = Regex::new("notification_popup").unwrap();
-    let nbr_running = re.find_iter(&out_str).count();
-    (nbr_running >= 2)
-}
-
-fn gotta_kill_em_all() {
-    Command::new("killall").arg("notification_popup").spawn().unwrap();
-}
-
 fn format_body(mut body: String) -> String {
     if body.len() <= MAX_LINE_LENGTH {
         return body.to_owned();
@@ -95,6 +78,37 @@ fn format_body(mut body: String) -> String {
         body = format!("{}{}\n", body, part);
     }
     (&body[..body.len() - 1]).to_owned()
+}
+
+// Check if already running
+fn is_running() -> bool {
+    let output = Command::new("ps")
+                         .args(&["-ax"])
+                         .output().unwrap();
+    let out_str = String::from_utf8_lossy(&output.stdout);
+    let re = Regex::new("[0-9]+:[0-9]+ [^ ]*volume_slider ").unwrap();
+    let nbr_running = re.find_iter(&out_str).count();
+    (nbr_running > 1)
+}
+
+fn gotta_kill_em_all() {
+    Command::new("killall").arg("notification_popup").spawn().unwrap();
+}
+
+fn get_position(display: &String) -> (i32, i32) {
+    let stdout = Command::new("xrandr").output().unwrap();
+    let out = String::from_utf8_lossy(&stdout.stdout);
+
+    let re_string = format!("{}.*? ([0-9]*)x[0-9]*\\+([0-9]*)",
+                            display);
+    let re = Regex::new(&re_string[..]).unwrap();
+    let caps = re.captures(&out).unwrap();
+
+    let disp_wid = caps.at(1).unwrap().parse::<i32>().unwrap();
+    let disp_off = caps.at(2).unwrap().parse::<i32>().unwrap();
+    let x = disp_wid + disp_off - 350;
+
+    (x, 30)
 }
 
 fn draw_notifications(cont: &Box, win: &Window) {
@@ -145,12 +159,11 @@ fn main() {
     if args.len() <= 1 {
         return;
     }
-    let wm_name = format!("notification_popup-{}", args[1]);
 
     // Init GTK and Window
     gtk::init().unwrap();
     let window = Window::new(WindowType::Toplevel);
-    window.set_title(&wm_name[..]);
+    window.set_title("notification_popup");
     window.set_default_size(350, 0);
 
     // Create Container
@@ -164,6 +177,9 @@ fn main() {
 
     window.add(&cont);
     window.show_all();
+
+    let win_pos = get_position(&args[1]);
+    window.move_(win_pos.0, win_pos.1);
 
     window.connect_delete_event(|_, _| {
         gtk::main_quit();
