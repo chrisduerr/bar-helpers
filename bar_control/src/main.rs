@@ -94,7 +94,7 @@ fn get_not(screen: &String, config: &Config, colors: &Colors, exec: &Executables
     let mut response = String::new();
     let _ = stream.read_to_string(&mut response);
     if response.starts_with("{") {
-        let not_script = format!("{} {} &", exec.not, screen);
+        let not_script = format!("{} {} {} &", exec.not, screen, config.height);
         return add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}%{{A}}",
                                   colors.hl_col, colors.bg_col, not_script, config.not_pad, config.not_pad));
     }
@@ -116,7 +116,7 @@ fn get_vol(screen: &String, config: &Config, colors: &Colors, exec: &Executables
                 Some(pos) => pos,
                 None => return String::new(),
             } +1..]);
-            let vol_script = format!("{} {} &", exec.vol, screen);
+            let vol_script = format!("{} {} {} &", exec.vol, screen, config.height);
             add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}{} {}{}%{{A}}",
                                colors.bg_sec, colors.fg_col, vol_script, config.vol_pad, vol, config.vol_pad))
         },
@@ -125,7 +125,7 @@ fn get_vol(screen: &String, config: &Config, colors: &Colors, exec: &Executables
 }
 
 fn get_pow(screen: &String, config: &Config, colors: &Colors, exec: &Executables) -> String {
-    let pow_script = format!("{} {} &", exec.pow, screen);
+    let pow_script = format!("{} {} {} &", exec.pow, screen, config.height);
     add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}{}%{{A}}",
                        colors.bg_sec, colors.fg_col, pow_script, config.pow_pad, config.power_icon, config.pow_pad))
 }
