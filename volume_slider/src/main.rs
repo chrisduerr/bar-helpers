@@ -96,7 +96,7 @@ fn main() {
     window.add(&cont);
     window.show_all();
 
-	let win_pos = get_position(&args[1]);
+    let win_pos = get_position(&args[1]);
     window.move_(win_pos.0, win_pos.1);
 
     window.connect_delete_event(|_, _| {
