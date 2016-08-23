@@ -35,7 +35,7 @@ fn gotta_kill_em_all() {
     let _ = Command::new("killall").arg("shutdown_menu").spawn();
 }
 
-fn get_position(display: &String) -> (i32, i32) {
+fn get_position(display: &String, barh: &String) -> (i32, i32) {
     let stdout = Command::new("xrandr").output().unwrap();
     let out = String::from_utf8_lossy(&stdout.stdout);
 
@@ -45,8 +45,9 @@ fn get_position(display: &String) -> (i32, i32) {
     let caps = re.captures(&out).unwrap();
 
     let disp_off = caps.at(1).unwrap().parse::<i32>().unwrap();
+    let y = barh.parse::<i32>().unwrap();
 
-    (disp_off, 30)
+    (disp_off, y)
 }
 
 // Create a new
@@ -59,7 +60,7 @@ fn main() {
 
     // Check if screen was specified
     let args: Vec<_> = env::args().collect();
-    if args.len() <= 1 {
+    if args.len() <= 2 {
         return;
     }
 
@@ -90,7 +91,7 @@ fn main() {
     window.add(&cont);
     window.show_all();
 
-    let win_pos = get_position(&args[1]);
+    let win_pos = get_position(&args[1], &args[2]);
     window.move_(win_pos.0, win_pos.1);
 
     window.connect_delete_event(|_, _| {

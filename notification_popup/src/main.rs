@@ -95,7 +95,7 @@ fn gotta_kill_em_all() {
     Command::new("killall").arg("notification_popup").spawn().unwrap();
 }
 
-fn get_position(display: &String) -> (i32, i32) {
+fn get_position(display: &String, barh: &String) -> (i32, i32) {
     let stdout = Command::new("xrandr").output().unwrap();
     let out = String::from_utf8_lossy(&stdout.stdout);
 
@@ -106,9 +106,11 @@ fn get_position(display: &String) -> (i32, i32) {
 
     let disp_wid = caps.at(1).unwrap().parse::<i32>().unwrap();
     let disp_off = caps.at(2).unwrap().parse::<i32>().unwrap();
-    let x = disp_wid + disp_off - 350;
 
-    (x, 30)
+    let x = disp_wid + disp_off - 350;
+    let y = barh.parse::<i32>().unwrap();
+
+    (x, y)
 }
 
 fn draw_notifications(cont: &Box, win: &Window) {
@@ -156,7 +158,7 @@ fn main() {
 
     // Check if screen was specified
     let args: Vec<_> = env::args().collect();
-    if args.len() <= 1 {
+    if args.len() <= 2 {
         return;
     }
 
@@ -178,7 +180,7 @@ fn main() {
     window.add(&cont);
     window.show_all();
 
-    let win_pos = get_position(&args[1]);
+    let win_pos = get_position(&args[1], &args[2]);
     window.move_(win_pos.0, win_pos.1);
 
     window.connect_delete_event(|_, _| {
