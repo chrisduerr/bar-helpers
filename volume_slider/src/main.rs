@@ -9,8 +9,8 @@ use std::process::Command;
 
 fn get_current_volume() -> f64 {
     let output = Command::new("amixer")
-                         .args(&["-D", "pulse", "get", "Master"])
-                         .output();
+        .args(&["-D", "pulse", "get", "Master"])
+        .output();
     match output {
         Ok(out) => {
             let stdout_str = String::from_utf8_lossy(&out.stdout);
@@ -19,7 +19,7 @@ fn get_current_volume() -> f64 {
                 Some(caps) => caps.at(1).unwrap().parse().unwrap(),
                 None => 0.0,
             }
-        },
+        }
         Err(_) => 0.0,
     }
 }
@@ -28,15 +28,16 @@ fn set_volume(level: f64) {
     let vol_trunc = level as u8;
     let vol_perc = format!("{}%", vol_trunc);
     let _ = Command::new("amixer")
-            .args(&["-q", "-D", "pulse", "set", "Master", &vol_perc[..]])
-            .spawn();
+        .args(&["-q", "-D", "pulse", "set", "Master", &vol_perc[..]])
+        .spawn();
 }
 
 // Check if Scale already is running
 fn is_running() -> bool {
     let output = Command::new("ps")
-                         .args(&["-ax"])
-                         .output().unwrap();
+        .args(&["-ax"])
+        .output()
+        .unwrap();
     let out_str = String::from_utf8_lossy(&output.stdout);
     let re = Regex::new("[0-9]+:[0-9]+ [^ ]*volume_slider ").unwrap();
     let nbr_running = re.find_iter(&out_str).count();
@@ -51,8 +52,7 @@ fn get_position(display: &String, barh: &String) -> (i32, i32) {
     let stdout = Command::new("xrandr").output().unwrap();
     let out = String::from_utf8_lossy(&stdout.stdout);
 
-    let re_string = format!("{}.*? ([0-9]*)x[0-9]*\\+([0-9]*)",
-                            display);
+    let re_string = format!("{}.*? ([0-9]*)x[0-9]*\\+([0-9]*)", display);
     let re = Regex::new(&re_string[..]).unwrap();
     let caps = re.captures(&out).unwrap();
 
@@ -86,8 +86,7 @@ fn main() {
     window.set_default_size(350, 50);
 
     // Create Scale
-    let adj = Adjustment::new(get_current_volume(),
-                              0.0, 101.0, 1.0, 1.0, 1.0);
+    let adj = Adjustment::new(get_current_volume(), 0.0, 101.0, 1.0, 1.0, 1.0);
     let scale = Scale::new(Orientation::Horizontal, Some(&adj));
     scale.set_draw_value(false);
 

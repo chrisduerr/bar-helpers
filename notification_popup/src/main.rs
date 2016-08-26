@@ -35,8 +35,9 @@ fn get_all_nots() -> Vec<NotificationsList> {
     let path = format!("{}/Scripts/leechnot.py", home_str);
     println!("{}", path);
     let output = Command::new("python2")
-                     .args(&[&path[..], "all"])
-                     .output().unwrap();
+        .args(&[&path[..], "all"])
+        .output()
+        .unwrap();
     let out_str = String::from_utf8_lossy(&output.stdout);
 
     // Convert to Decodable str
@@ -50,8 +51,9 @@ fn delete_not(id: u8) {
     let home_dir_str = home_dir.to_str().unwrap();
     let script_dir = format!("{}/Scripts/leechnot.py", home_dir_str);
     let _ = Command::new("python2")
-            .args(&[&script_dir[..], "del", &id.to_string()[..]])
-            .output().unwrap();
+        .args(&[&script_dir[..], "del", &id.to_string()[..]])
+        .output()
+        .unwrap();
 }
 
 fn format_body(mut body: String) -> String {
@@ -64,8 +66,7 @@ fn format_body(mut body: String) -> String {
         if !body.contains(" ") {
             body_vec.push(body[..MAX_LINE_LENGTH].to_owned().clone());
             body = body[MAX_LINE_LENGTH..].to_owned();
-        }
-        else {
+        } else {
             let index = body[..MAX_LINE_LENGTH].rfind(' ').unwrap();
             body_vec.push(body[..index].to_owned());
             body = body[index + 1..].to_owned();
@@ -83,8 +84,9 @@ fn format_body(mut body: String) -> String {
 // Check if already running
 fn is_running() -> bool {
     let output = Command::new("ps")
-                         .args(&["-ax"])
-                         .output().unwrap();
+        .args(&["-ax"])
+        .output()
+        .unwrap();
     let out_str = String::from_utf8_lossy(&output.stdout);
     let re = Regex::new("[0-9]+:[0-9]+ [^ ]*volume_slider ").unwrap();
     let nbr_running = re.find_iter(&out_str).count();
@@ -99,8 +101,7 @@ fn get_position(display: &String, barh: &String) -> (i32, i32) {
     let stdout = Command::new("xrandr").output().unwrap();
     let out = String::from_utf8_lossy(&stdout.stdout);
 
-    let re_string = format!("{}.*? ([0-9]*)x[0-9]*\\+([0-9]*)",
-                            display);
+    let re_string = format!("{}.*? ([0-9]*)x[0-9]*\\+([0-9]*)", display);
     let re = Regex::new(&re_string[..]).unwrap();
     let caps = re.captures(&out).unwrap();
 

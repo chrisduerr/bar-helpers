@@ -23,8 +23,9 @@ fn reboot() {
 // Check if already running
 fn is_running() -> bool {
     let output = Command::new("ps")
-                         .args(&["-ax"])
-                         .output().unwrap();
+        .args(&["-ax"])
+        .output()
+        .unwrap();
     let out_str = String::from_utf8_lossy(&output.stdout);
     let re = Regex::new("[0-9]+:[0-9]+ [^ ]*shutdown_menu ").unwrap();
     let nbr_running = re.find_iter(&out_str).count();
@@ -39,8 +40,7 @@ fn get_position(display: &String, barh: &String) -> (i32, i32) {
     let stdout = Command::new("xrandr").output().unwrap();
     let out = String::from_utf8_lossy(&stdout.stdout);
 
-    let re_string = format!("{}.*? [0-9]*x[0-9]*\\+([0-9]*)",
-                            display);
+    let re_string = format!("{}.*? [0-9]*x[0-9]*\\+([0-9]*)", display);
     let re = Regex::new(&re_string[..]).unwrap();
     let caps = re.captures(&out).unwrap();
 

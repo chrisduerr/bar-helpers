@@ -16,14 +16,14 @@ pub struct Config {
     pub ws_pad: String,
     pub dat_pad: String,
     pub not_pad: String,
-    pub vol_pad: String
+    pub vol_pad: String,
 }
 
 pub struct Executables {
     pub pow: String,
     pub vol: String,
     pub not: String,
-    pub ws: String
+    pub ws: String,
 }
 
 pub struct Colors {
@@ -31,7 +31,7 @@ pub struct Colors {
     pub bg_sec: String,
     pub fg_col: String,
     pub fg_sec: String,
-    pub hl_col: String
+    pub hl_col: String,
 }
 
 
@@ -55,7 +55,7 @@ pub fn get_executables() -> Executables {
         pow: get_value(&config, "exec.power").as_str().unwrap().to_owned(),
         vol: get_value(&config, "exec.volume").as_str().unwrap().to_owned(),
         not: get_value(&config, "exec.notifications").as_str().unwrap().to_owned(),
-        ws: get_value(&config, "exec.switch_focused_workspace").as_str().unwrap().to_owned()
+        ws: get_value(&config, "exec.switch_focused_workspace").as_str().unwrap().to_owned(),
     }
 }
 
@@ -70,7 +70,7 @@ pub fn get_colors() -> Colors {
         bg_sec: get_value(&config, "colors.background_secondary").as_str().unwrap().to_owned(),
         fg_col: get_value(&config, "colors.foreground_color").as_str().unwrap().to_owned(),
         fg_sec: get_value(&config, "colors.foreground_secondary").as_str().unwrap().to_owned(),
-        hl_col: get_value(&config, "colors.highlight_color").as_str().unwrap().to_owned()
+        hl_col: get_value(&config, "colors.highlight_color").as_str().unwrap().to_owned(),
     }
 }
 
@@ -83,7 +83,8 @@ pub fn get_config() -> Config {
 
     // Pick one random pow icon
     let mut rng = thread_rng();
-    let pow_icon_choices: Vec<char> = get_value(&config, "general.power_icons").as_str().unwrap().chars().collect();
+    let pow_icon_choices: Vec<char> =
+        get_value(&config, "general.power_icons").as_str().unwrap().chars().collect();
     let pow_icon = rng.choose(&pow_icon_choices).unwrap();
 
     Config {
@@ -97,6 +98,6 @@ pub fn get_config() -> Config {
         ws_pad: get_value(&config, "placeholders.workspace").as_str().unwrap().to_owned(),
         dat_pad: get_value(&config, "placeholders.clock").as_str().unwrap().to_owned(),
         not_pad: get_value(&config, "placeholders.notification").as_str().unwrap().to_owned(),
-        vol_pad: get_value(&config, "placeholders.volume").as_str().unwrap().to_owned()
+        vol_pad: get_value(&config, "placeholders.volume").as_str().unwrap().to_owned(),
     }
 }
