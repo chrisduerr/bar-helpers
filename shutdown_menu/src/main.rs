@@ -36,7 +36,7 @@ fn gotta_kill_em_all() {
     let _ = Command::new("killall").arg("shutdown_menu").spawn();
 }
 
-fn get_position(display: &String, barh: &String) -> (i32, i32) {
+fn get_position(display: &str, barh: &str) -> (i32, i32) {
     let stdout = Command::new("xrandr").output().unwrap();
     let out = String::from_utf8_lossy(&stdout.stdout);
 

@@ -63,7 +63,7 @@ fn format_body(mut body: String) -> String {
 
     let mut body_vec: Vec<String> = Vec::new();
     while body.len() > MAX_LINE_LENGTH {
-        if !body.contains(" ") {
+        if !body.contains(' ') {
             body_vec.push(body[..MAX_LINE_LENGTH].to_owned().clone());
             body = body[MAX_LINE_LENGTH..].to_owned();
         } else {
@@ -75,7 +75,7 @@ fn format_body(mut body: String) -> String {
     body_vec.push(body);
     body = String::new();
 
-    for part in body_vec.iter() {
+    for part in body_vec {
         body = format!("{}{}\n", body, part);
     }
     (&body[..body.len() - 1]).to_owned()
@@ -97,7 +97,7 @@ fn gotta_kill_em_all() {
     Command::new("killall").arg("notification_popup").spawn().unwrap();
 }
 
-fn get_position(display: &String, barh: &String) -> (i32, i32) {
+fn get_position(display: &str, barh: &str) -> (i32, i32) {
     let stdout = Command::new("xrandr").output().unwrap();
     let out = String::from_utf8_lossy(&stdout.stdout);
 
@@ -117,11 +117,11 @@ fn get_position(display: &String, barh: &String) -> (i32, i32) {
 fn draw_notifications(cont: &Box, win: &Window) {
     win.resize(350, 1);
     let not_vec = get_all_nots();
-    if not_vec.len() == 0 {
+    if not_vec.is_empty() {
         std::process::exit(0);
     }
 
-    for not in not_vec.iter() {
+    for not in not_vec {
         // Use App Name as Label
         let _ = not.not.summary;
         let label_str = format!("{}:", not.not.app);

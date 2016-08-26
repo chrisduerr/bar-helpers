@@ -89,7 +89,7 @@ pub fn get_config() -> Config {
 
     Config {
         height: get_value(&config, "general.height").as_integer().unwrap(),
-        power_icon: pow_icon.clone(),
+        power_icon: *pow_icon,
         font: get_value(&config, "general.font").as_str().unwrap().to_owned(),
         icon_font: get_value(&config, "general.icon_font").as_str().unwrap().to_owned(),
         workspace_icons: get_value(&config, "general.workspace_icons").as_str().unwrap().to_owned(),

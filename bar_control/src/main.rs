@@ -24,16 +24,16 @@ struct Screen {
 }
 
 
-fn add_reset(input: &String) -> String {
+fn add_reset(input: &str) -> String {
     format!("{}%{{B-}}%{{F-}}%{{T-}}", input)
 }
 
-fn get_ws(screen: &String,
+fn get_ws(screen: &str,
           config: &Config,
           colors: &Colors,
           exec: &Executables,
           display_count: &i32,
-          workspaces: &Vec<i3ipc::reply::Workspace>)
+          workspaces: &[i3ipc::reply::Workspace])
           -> String {
     let mut result_str = String::new();
 
@@ -70,26 +70,24 @@ fn get_ws(screen: &String,
                                      config.ws_pad,
                                      icon,
                                      config.ws_pad);
+            } else if workspaces[ws_index].urgent {
+                result_str = format!("{}%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}{}%{{A}}",
+                                     result_str,
+                                     colors.bg_col,
+                                     colors.hl_col,
+                                     ws_script,
+                                     config.ws_pad,
+                                     icon,
+                                     config.ws_pad);
             } else {
-                if workspaces[ws_index].urgent {
-                    result_str = format!("{}%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}{}%{{A}}",
-                                         result_str,
-                                         colors.bg_col,
-                                         colors.hl_col,
-                                         ws_script,
-                                         config.ws_pad,
-                                         icon,
-                                         config.ws_pad);
-                } else {
-                    result_str = format!("{}%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}{}%{{A}}",
-                                         result_str,
-                                         colors.bg_col,
-                                         colors.fg_sec,
-                                         ws_script,
-                                         config.ws_pad,
-                                         icon,
-                                         config.ws_pad);
-                }
+                result_str = format!("{}%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}{}%{{A}}",
+                                     result_str,
+                                     colors.bg_col,
+                                     colors.fg_sec,
+                                     ws_script,
+                                     config.ws_pad,
+                                     icon,
+                                     config.ws_pad);
             }
         }
     }
@@ -110,7 +108,7 @@ fn get_date(config: &Config, colors: &Colors) -> String {
                        config.dat_pad))
 }
 
-fn get_not(screen: &String, config: &Config, colors: &Colors, exec: &Executables) -> String {
+fn get_not(screen: &str, config: &Config, colors: &Colors, exec: &Executables) -> String {
     // Connect to server and check for message
     let mut stream = match UnixStream::connect("/tmp/leechnot.sock") {
         Ok(us) => us,
@@ -119,7 +117,7 @@ fn get_not(screen: &String, config: &Config, colors: &Colors, exec: &Executables
     let _ = stream.write_all(b"show");
     let mut response = String::new();
     let _ = stream.read_to_string(&mut response);
-    if response.starts_with("{") {
+    if response.starts_with('{') {
         let not_script = format!("{} {} {} &", exec.not, screen, config.height);
         return add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}%{{A}}",
                                   colors.hl_col,
@@ -131,19 +129,19 @@ fn get_not(screen: &String, config: &Config, colors: &Colors, exec: &Executables
     String::new()
 }
 
-fn get_vol(screen: &String, config: &Config, colors: &Colors, exec: &Executables) -> String {
+fn get_vol(screen: &str, config: &Config, colors: &Colors, exec: &Executables) -> String {
     let cmd_out = Command::new("amixer")
         .args(&["-D", "pulse", "get", "Master"])
         .output();
     match cmd_out {
         Ok(out) => {
             let out_str = String::from_utf8_lossy(&out.stdout);
-            let vol_end = &out_str[..match out_str.find("%") {
+            let vol_end = &out_str[..match out_str.find('%') {
                 Some(pos) => pos,
                 None => return String::new(),
             }];
             let vol = format!("{:>3}",
-                              &vol_end[match vol_end.rfind("[") {
+                              &vol_end[match vol_end.rfind('[') {
                                   Some(pos) => pos,
                                   None => return String::new(),
                               } + 1..]);
@@ -160,7 +158,7 @@ fn get_vol(screen: &String, config: &Config, colors: &Colors, exec: &Executables
     }
 }
 
-fn get_pow(screen: &String, config: &Config, colors: &Colors, exec: &Executables) -> String {
+fn get_pow(screen: &str, config: &Config, colors: &Colors, exec: &Executables) -> String {
     let pow_script = format!("{} {} {} &", exec.pow, screen, config.height);
     add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}{}%{{A}}",
                        colors.bg_sec,
@@ -210,7 +208,7 @@ fn main() {
     let display_count = screens.len() as i32;
 
     let mut bar_threads = Vec::new();
-    for screen in screens.iter() {
+    for screen in screens {
         // Load user settings from file
         let config = config::get_config();
         let colors = config::get_colors();
