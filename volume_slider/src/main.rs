@@ -52,17 +52,19 @@ fn get_position(display: &str, barh: &str) -> (i32, i32) {
     let stdout = Command::new("xrandr").output().unwrap();
     let out = String::from_utf8_lossy(&stdout.stdout);
 
-    let re_string = format!("{}.*? ([0-9]*)x[0-9]*\\+([0-9]*)", display);
+    let re_string = format!("{}.*? ([0-9]*)x[0-9]*\\+([0-9]*)\\+([0-9]*)", display);
     let re = Regex::new(&re_string[..]).unwrap();
     let caps = re.captures(&out).unwrap();
 
-    let disp_wid = caps.at(1).unwrap().parse::<i32>().unwrap();
-    let disp_off = caps.at(2).unwrap().parse::<i32>().unwrap();
+    let x_width = caps.at(1).unwrap().parse::<i32>().unwrap();
+    let x_offset = caps.at(2).unwrap().parse::<i32>().unwrap();
+    let y_offset = caps.at(3).unwrap().parse::<i32>().unwrap();
+    let barh = barh.parse::<i32>().unwrap();
 
-    let x = disp_wid + disp_off - 350;
-    let y = barh.parse::<i32>().unwrap();
+    let x_pos = x_width + x_offset - 350;
+    let y_pos = y_offset + barh;
 
-    (x, y)
+    (x_pos, y_pos)
 }
 
 // Create a new scale
