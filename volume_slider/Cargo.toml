@@ -5,4 +5,6 @@ authors = ["UndeadLeech <programming@undeadleech.de>"]
 
 [dependencies]
 gtk = "0.1"
+gdk = "0.5"
+toml = "0.2"
 regex = "0.1"
