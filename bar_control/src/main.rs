@@ -12,7 +12,6 @@ use std::time::Duration;
 use i3ipc::I3Connection;
 use std::io::prelude::*;
 use std::process::{Command, Stdio};
-use std::os::unix::net::UnixStream;
 use config::{Config, Executables, Colors};
 use std::os::unix::io::{FromRawFd, IntoRawFd};
 
@@ -106,27 +105,6 @@ fn get_date(config: &Config, colors: &Colors) -> String {
                        config.dat_pad,
                        curr_time_clock,
                        config.dat_pad))
-}
-
-fn get_not(screen: &str, config: &Config, colors: &Colors, exec: &Executables) -> String {
-    // Connect to server and check for message
-    let mut stream = match UnixStream::connect("/tmp/leechnot.sock") {
-        Ok(us) => us,
-        Err(_) => return String::new(),
-    };
-    let _ = stream.write_all(b"show");
-    let mut response = String::new();
-    let _ = stream.read_to_string(&mut response);
-    if response.starts_with('{') {
-        let not_script = format!("{} {} &", exec.not, screen);
-        return add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}%{{A}}",
-                                  colors.hl_col,
-                                  colors.bg_col,
-                                  not_script,
-                                  config.not_pad,
-                                  config.not_pad));
-    }
-    String::new()
 }
 
 fn get_vol(screen: &str, config: &Config, colors: &Colors, exec: &Executables) -> String {
@@ -262,15 +240,13 @@ fn main() {
 
                 let date_block = get_date(&config, &colors);
                 let ws_block = get_ws(&name, &config, &colors, &exec, &display_count, &workspaces);
-                let not_block = get_not(&name, &config, &colors, &exec);
                 let vol_block = get_vol(&name, &config, &colors, &exec);
 
-                let bar_string = format!("{}{}{}%{{c}}{}%{{r}}{}{}{}\n",
+                let bar_string = format!("{}{}{}%{{c}}{}%{{r}}{}{}\n",
                                          pow_block,
                                          config.gen_pad,
                                          ws_block,
                                          date_block,
-                                         not_block,
                                          config.gen_pad,
                                          vol_block);
                 let _ = stdin.write((&bar_string[..]).as_bytes());

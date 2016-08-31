@@ -15,14 +15,12 @@ pub struct Config {
     pub pow_pad: String,
     pub ws_pad: String,
     pub dat_pad: String,
-    pub not_pad: String,
     pub vol_pad: String,
 }
 
 pub struct Executables {
     pub pow: String,
     pub vol: String,
-    pub not: String,
     pub ws: String,
 }
 
@@ -54,7 +52,6 @@ pub fn get_executables() -> Executables {
     Executables {
         pow: get_value(&config, "exec.power").as_str().unwrap().to_owned(),
         vol: get_value(&config, "exec.volume").as_str().unwrap().to_owned(),
-        not: get_value(&config, "exec.notifications").as_str().unwrap().to_owned(),
         ws: get_value(&config, "exec.switch_focused_workspace").as_str().unwrap().to_owned(),
     }
 }
@@ -97,7 +94,6 @@ pub fn get_config() -> Config {
         pow_pad: get_value(&config, "placeholders.power").as_str().unwrap().to_owned(),
         ws_pad: get_value(&config, "placeholders.workspace").as_str().unwrap().to_owned(),
         dat_pad: get_value(&config, "placeholders.clock").as_str().unwrap().to_owned(),
-        not_pad: get_value(&config, "placeholders.notification").as_str().unwrap().to_owned(),
         vol_pad: get_value(&config, "placeholders.volume").as_str().unwrap().to_owned(),
     }
 }
