@@ -154,7 +154,7 @@ fn get_screens() -> Vec<Screen> {
         Err(_) => return Vec::new(),
     };
     let xrandr_str = String::from_utf8_lossy(&xrandr_out.stdout);
-    let screen_re = Regex::new("([a-zA-Z0-9-]*) connected ([0-9]*)x[^+]*\\+([0-9]*)").unwrap();
+    let screen_re = Regex::new("([a-zA-Z0-9-]*) connected .*?([0-9]*)x[^+]*\\+([0-9]*)").unwrap();
     for caps in screen_re.captures_iter(&xrandr_str) {
         screens.push(Screen {
             name: caps.at(1).unwrap().to_owned(),
