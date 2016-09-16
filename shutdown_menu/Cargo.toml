@@ -7,5 +7,4 @@ authors = ["UndeadLeech <programming@undeadleech.de>"]
 gtk = "0.1"
 gdk = "0.5"
 toml = "0.2"
-pango = "0.1"
 regex = "0.1"

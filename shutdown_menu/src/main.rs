@@ -1,18 +1,16 @@
 extern crate gtk;
 extern crate gdk;
 extern crate toml;
-extern crate pango;
 extern crate regex;
 
 use gtk::prelude::*;
-use gtk::{StyleContext, CssProvider, Window, WindowType, Box, Button,
-          Orientation};
+use gtk::{Image, StyleContext, CssProvider, Window, WindowType, Box, Button, Orientation};
 use gdk::Screen;
-use pango::FontDescription;
 use regex::Regex;
 use std::env;
 use std::fs::File;
 use std::io::Read;
+use std::path::Path;
 use std::process::Command;
 
 
@@ -46,21 +44,20 @@ fn get_position(display: &str) -> (i32, i32) {
     let stdout = Command::new("xrandr").output().unwrap();
     let out = String::from_utf8_lossy(&stdout.stdout);
 
-    let re_string = format!("{}.*? [0-9]*x[0-9]*\\+([0-9]*)\\+([0-9]*)",
-                            display);
+    let re_string = format!("{}.*? [0-9]*x[0-9]*\\+([0-9]*)\\+([0-9]*)", display);
     let re = Regex::new(&re_string[..]).unwrap();
     let caps = re.captures(&out).unwrap();
 
     let x_offset = caps.at(1).unwrap().parse::<i32>().unwrap();
     let y_offset = caps.at(2).unwrap().parse::<i32>().unwrap();
 
-    let x_pos = x_offset + 100;
+    let x_pos = x_offset + 81;
     let y_pos = y_offset;
 
     (x_pos, y_pos)
 }
 
-fn get_background_color() -> String {
+fn get_color(col_name: &str) -> String {
     let home = env::home_dir().unwrap();
     let home = home.to_str().unwrap();
     let path = format!("{}/.config/undeadlemon.toml", &home);
@@ -70,7 +67,8 @@ fn get_background_color() -> String {
     let _ = f.read_to_string(&mut buf);
 
     let tomled: toml::Value = buf.parse().unwrap();
-    tomled.lookup("colors.background_color")
+    let toml_val = format!("colors.{}", col_name);
+    tomled.lookup(&toml_val[..])
         .unwrap()
         .as_str()
         .unwrap()
@@ -98,27 +96,33 @@ fn main() {
     window.set_default_size(350, 30);
 
     // Shutdown Button
-    let font = FontDescription::from_string("Fira Mono Bold 12");
-    let shutdown_btn = Button::new_with_label("SHUTDOWN");
-    WidgetExt::override_font(&shutdown_btn, Some(&font));
+    let shutdown_img = Image::new_from_file(Path::new("/home/undeadleech/Downloads/shutdown.png"));
+    let shutdown_btn = Button::new();
+    shutdown_btn.set_image(&shutdown_img);
 
     // Restart Button
-    let reboot_btn = Button::new_with_label(" REBOOT ");
-    WidgetExt::override_font(&reboot_btn, Some(&font));
+    let reboot_img = Image::new_from_file(Path::new("/home/undeadleech/Downloads/reboot.png"));
+    let reboot_btn = Button::new();
+    reboot_btn.set_image(&reboot_img);
 
     // Create Container
     let cont = Box::new(Orientation::Horizontal, 0);
-    cont.pack_start(&shutdown_btn, true, true, 10);
-    cont.pack_start(&reboot_btn, true, true, 10);
+    cont.pack_start(&shutdown_btn, false, false, 10);
+    cont.pack_start(&reboot_btn, false, false, 10);
 
     // Load custom CSS style
-    let bg_col = get_background_color();
-    let data = format!("");
+    let bg_col = get_color("background_color");
+    let bg_col_sec = get_color("background_secondary");
+    let data = format!("window {{background-color: {}}} * {{border: none;}} button \
+                        {{background-color: {}; padding-left: 14px; padding-right: 14px;}}",
+                       &bg_col,
+                       &bg_col_sec);
     let screen = Screen::get_default().unwrap();
     let provider = CssProvider::new();
     let _ = provider.load_from_data(&data);
-    StyleContext::add_provider_for_screen(&screen, &provider,
-                                    gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
+    StyleContext::add_provider_for_screen(&screen,
+                                          &provider,
+                                          gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
 
     window.add(&cont);
     window.show_all();
