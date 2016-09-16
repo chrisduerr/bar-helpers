@@ -39,7 +39,7 @@ pub fn get_value(toml: &toml::Value, value: &str) -> toml::Value {
 pub fn get_config_path() -> String {
     let home_path = home_dir().unwrap();
     let home_str = home_path.to_str().unwrap();
-    format!("{}/.config/undeadlemon.toml", home_str)
+    format!("{}/.config/undeadlemon/config.toml", home_str)
 }
 
 pub fn get_executables() -> Executables {

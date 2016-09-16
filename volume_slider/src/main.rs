@@ -74,7 +74,7 @@ fn get_position(display: &str) -> (i32, i32) {
 fn get_background_color() -> String {
     let home = env::home_dir().unwrap();
     let home = home.to_str().unwrap();
-    let path = format!("{}/.config/undeadlemon.toml", &home);
+    let path = format!("{}/.config/undeadlemon/config.toml", &home);
 
     let mut f = File::open(&path).unwrap();
     let mut buf = String::new();

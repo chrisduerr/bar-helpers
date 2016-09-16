@@ -60,7 +60,7 @@ fn get_position(display: &str) -> (i32, i32) {
 fn get_color(col_name: &str) -> String {
     let home = env::home_dir().unwrap();
     let home = home.to_str().unwrap();
-    let path = format!("{}/.config/undeadlemon.toml", &home);
+    let path = format!("{}/.config/undeadlemon/config.toml", &home);
 
     let mut f = File::open(&path).unwrap();
     let mut buf = String::new();
@@ -95,13 +95,20 @@ fn main() {
     window.set_title("shutdown_menu");
     window.set_default_size(350, 30);
 
+    // Get home path
+    let home = env::home_dir().unwrap();
+    let home = home.to_str().unwrap();
+
     // Shutdown Button
-    let shutdown_img = Image::new_from_file(Path::new("/home/undeadleech/Downloads/shutdown.png"));
+    let shutdown_img = Image::new_from_file(Path::new(&format!("{}/.config/undeadlemon/imgs/shutdown.\
+                                                                png",
+                                                               &home)));
     let shutdown_btn = Button::new();
     shutdown_btn.set_image(&shutdown_img);
 
     // Restart Button
-    let reboot_img = Image::new_from_file(Path::new("/home/undeadleech/Downloads/reboot.png"));
+    let reboot_img =
+        Image::new_from_file(Path::new(&format!("{}/.config/undeadlemon/imgs/reboot.png", &home)));
     let reboot_btn = Button::new();
     reboot_btn.set_image(&reboot_img);
 
