@@ -2,12 +2,11 @@ use toml;
 use std::env::home_dir;
 use std::fs::File;
 use std::io::prelude::*;
-use rand::{thread_rng, Rng};
 
 
 pub struct Config {
     pub height: i64,
-    pub power_icon: char,
+    pub power_icon: String,
     pub font: String,
     pub icon_font: String,
     pub workspace_icons: String,
@@ -96,18 +95,12 @@ pub fn get_config() -> Config {
 
     let config: toml::Value = buf.parse().unwrap();
 
-    // Pick one random pow icon
-    let mut rng = thread_rng();
-    let pow_icon_choices: Vec<char> = get_value(&config, "general.power_icons")
-        .as_str()
-        .unwrap()
-        .chars()
-        .collect();
-    let pow_icon = rng.choose(&pow_icon_choices).unwrap();
-
     Config {
         height: get_value(&config, "general.height").as_integer().unwrap(),
-        power_icon: *pow_icon,
+        power_icon: get_value(&config, "general.power_icon")
+            .as_str()
+            .unwrap()
+            .to_owned(),
         font: get_value(&config, "general.font").as_str().unwrap().to_owned(),
         icon_font: get_value(&config, "general.icon_font")
             .as_str()
