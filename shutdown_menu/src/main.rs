@@ -113,13 +113,12 @@ fn main() {
 
     // Load custom CSS style
     let bg_col = get_background_color();
-    let data = format!("label {{background-color: {}; color: {};}}",
-                       "rgba(255,0,255,255)",
-                       "#ff00ff");
+    let data = format!("");
     let screen = Screen::get_default().unwrap();
     let provider = CssProvider::new();
     let _ = provider.load_from_data(&data);
-    StyleContext::add_provider_for_screen(&screen, &provider, 13);
+    StyleContext::add_provider_for_screen(&screen, &provider,
+                                    gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
 
     window.add(&cont);
     window.show_all();
