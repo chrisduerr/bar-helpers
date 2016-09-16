@@ -4,6 +4,8 @@ version = "0.1.0"
 authors = ["UndeadLeech <programming@undeadleech.de>"]
 
 [dependencies]
-gtk = "0.1.0"
-pango = "0.1.0"
-regex = "0.1.0"
+gtk = "0.1"
+gdk = "0.5"
+toml = "0.2"
+pango = "0.1"
+regex = "0.1"
