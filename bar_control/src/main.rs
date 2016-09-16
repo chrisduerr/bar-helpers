@@ -7,13 +7,15 @@ extern crate regex;
 mod config;
 
 use std::thread;
-use regex::Regex;
-use std::time::Duration;
-use i3ipc::I3Connection;
 use std::io::prelude::*;
+use std::time::Duration;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::process::{Command, Stdio};
-use config::{Config, Executables, Colors};
 use std::os::unix::io::{FromRawFd, IntoRawFd};
+use regex::Regex;
+use i3ipc::I3Connection;
+use config::{Config, Executables, Colors};
 
 
 struct Screen {
@@ -61,7 +63,8 @@ fn get_ws(screen: &str,
         } else {
             let ws_index = ws_index.unwrap();
             if workspaces[ws_index].visible {
-                result_str = format!("{}%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}{}%{{A}}",
+                result_str = format!("{}%{{B{}}}%{{F{}}}%{{A:{}:\
+                                      }}{}{}{}%{{A}}",
                                      result_str,
                                      colors.bg_sec,
                                      colors.fg_col,
@@ -70,7 +73,8 @@ fn get_ws(screen: &str,
                                      icon,
                                      config.ws_pad);
             } else if workspaces[ws_index].urgent {
-                result_str = format!("{}%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}{}%{{A}}",
+                result_str = format!("{}%{{B{}}}%{{F{}}}%{{A:{}:\
+                                      }}{}{}{}%{{A}}",
                                      result_str,
                                      colors.bg_col,
                                      colors.hl_col,
@@ -79,7 +83,8 @@ fn get_ws(screen: &str,
                                      icon,
                                      config.ws_pad);
             } else {
-                result_str = format!("{}%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}{}%{{A}}",
+                result_str = format!("{}%{{B{}}}%{{F{}}}%{{A:{}:\
+                                      }}{}{}{}%{{A}}",
                                      result_str,
                                      colors.bg_col,
                                      colors.fg_sec,
@@ -107,7 +112,11 @@ fn get_date(config: &Config, colors: &Colors) -> String {
                        config.dat_pad))
 }
 
-fn get_vol(screen: &str, config: &Config, colors: &Colors, exec: &Executables) -> String {
+fn get_vol(screen: &str,
+           config: &Config,
+           colors: &Colors,
+           exec: &Executables)
+           -> String {
     let cmd_out = Command::new("amixer")
         .args(&["-D", "pulse", "get", "Master"])
         .output();
@@ -136,7 +145,11 @@ fn get_vol(screen: &str, config: &Config, colors: &Colors, exec: &Executables) -
     }
 }
 
-fn get_pow(screen: &str, config: &Config, colors: &Colors, exec: &Executables) -> String {
+fn get_pow(screen: &str,
+           config: &Config,
+           colors: &Colors,
+           exec: &Executables)
+           -> String {
     let pow_script = format!("{} {} &", exec.pow, screen);
     add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}{}%{{A}}",
                        colors.bg_sec,
@@ -154,7 +167,9 @@ fn get_screens() -> Vec<Screen> {
         Err(_) => return Vec::new(),
     };
     let xrandr_str = String::from_utf8_lossy(&xrandr_out.stdout);
-    let screen_re = Regex::new("([a-zA-Z0-9-]*) connected .*?([0-9]*)x[^+]*\\+([0-9]*)").unwrap();
+    let screen_re = Regex::new("([a-zA-Z0-9-]*) connected \
+                                .*?([0-9]*)x[^+]*\\+([0-9]*)")
+        .unwrap();
     for caps in screen_re.captures_iter(&xrandr_str) {
         screens.push(Screen {
             name: caps.at(1).unwrap().to_owned(),
@@ -165,7 +180,8 @@ fn get_screens() -> Vec<Screen> {
     screens
 }
 
-fn i3ipc_get_workspaces(i3con: &mut I3Connection) -> Vec<i3ipc::reply::Workspace> {
+fn i3ipc_get_workspaces(i3con: &mut I3Connection)
+                        -> Vec<i3ipc::reply::Workspace> {
     match i3con.get_workspaces() {
         Ok(gw) => gw.workspaces,
         Err(_) => {
@@ -181,16 +197,24 @@ fn i3ipc_get_workspaces(i3con: &mut I3Connection) -> Vec<i3ipc::reply::Workspace
     }
 }
 
+fn monitor_count_changed(curr_count: &i32) -> bool {
+    let output = Command::new("xrandr").output().unwrap();
+    let xrandr_str = String::from_utf8_lossy(&output.stdout);
+    let monitor_count = xrandr_str.matches(" connected").count() as i32;
+    monitor_count != *curr_count
+}
+
 fn main() {
+    let restart_request = Arc::new(AtomicBool::new(false));
     let screens = get_screens();
     let display_count = screens.len() as i32;
 
     let mut bar_threads = Vec::new();
     for screen in screens {
         // Load user settings from file
-        let config = config::get_config();
-        let colors = config::get_colors();
-        let exec = config::get_executables();
+        let mut config = config::get_config();
+        let mut colors = config::get_colors();
+        let mut exec = config::get_executables();
 
         // Clone screen props so they're accessible by all threads
         let name = screen.name.clone();
@@ -201,7 +225,7 @@ fn main() {
         let mut i3con = I3Connection::connect().unwrap();
 
         // Get static pow block
-        let pow_block = get_pow(&name, &config, &colors, &exec);
+        let mut pow_block = get_pow(&name, &config, &colors, &exec);
 
         // Start lemonbar
         let rect = format!("{}x{}+{}+0", xres, config.height, xoffset);
@@ -232,14 +256,37 @@ fn main() {
         });
 
         // Thread that writes to lemonbar stdin
+        let restart_request = restart_request.clone();
         bar_threads.push(thread::spawn(move || {
             let stdin = lemonbar.stdin.as_mut().unwrap();
+            let mut update_count = 0;
             loop {
+                // Check for config and monitor update every ~5 seconds
+                if update_count == 50 {
+                    update_count = 0;
+                    config = config::get_config();
+                    colors = config::get_colors();
+                    exec = config::get_executables();
+                    pow_block = get_pow(&name, &config, &colors, &exec);
+
+                    if monitor_count_changed(&display_count) {
+                        restart_request.store(true, Ordering::SeqCst);
+                        break;
+                    }
+                } else {
+                    update_count += 1;
+                }
+
                 // Get workspaces from i3ipc, restablish connection if necessary
                 let workspaces = i3ipc_get_workspaces(&mut i3con);
 
                 let date_block = get_date(&config, &colors);
-                let ws_block = get_ws(&name, &config, &colors, &exec, &display_count, &workspaces);
+                let ws_block = get_ws(&name,
+                                      &config,
+                                      &colors,
+                                      &exec,
+                                      &display_count,
+                                      &workspaces);
                 let vol_block = get_vol(&name, &config, &colors, &exec);
 
                 let bar_string = format!("{}{}{}%{{c}}{}%{{r}}{}{}\n",
@@ -258,5 +305,9 @@ fn main() {
 
     for bar_thread in bar_threads {
         let _ = bar_thread.join();
+    }
+
+    if restart_request.load(Ordering::SeqCst) {
+        main();
     }
 }

@@ -52,7 +52,10 @@ pub fn get_executables() -> Executables {
     Executables {
         pow: get_value(&config, "exec.power").as_str().unwrap().to_owned(),
         vol: get_value(&config, "exec.volume").as_str().unwrap().to_owned(),
-        ws: get_value(&config, "exec.switch_focused_workspace").as_str().unwrap().to_owned(),
+        ws: get_value(&config, "exec.switch_focused_workspace")
+            .as_str()
+            .unwrap()
+            .to_owned(),
     }
 }
 
@@ -63,11 +66,26 @@ pub fn get_colors() -> Colors {
 
     let config: toml::Value = buf.parse().unwrap();
     Colors {
-        bg_col: get_value(&config, "colors.background_color").as_str().unwrap().to_owned(),
-        bg_sec: get_value(&config, "colors.background_secondary").as_str().unwrap().to_owned(),
-        fg_col: get_value(&config, "colors.foreground_color").as_str().unwrap().to_owned(),
-        fg_sec: get_value(&config, "colors.foreground_secondary").as_str().unwrap().to_owned(),
-        hl_col: get_value(&config, "colors.highlight_color").as_str().unwrap().to_owned(),
+        bg_col: get_value(&config, "colors.background_color")
+            .as_str()
+            .unwrap()
+            .to_owned(),
+        bg_sec: get_value(&config, "colors.background_secondary")
+            .as_str()
+            .unwrap()
+            .to_owned(),
+        fg_col: get_value(&config, "colors.foreground_color")
+            .as_str()
+            .unwrap()
+            .to_owned(),
+        fg_sec: get_value(&config, "colors.foreground_secondary")
+            .as_str()
+            .unwrap()
+            .to_owned(),
+        hl_col: get_value(&config, "colors.highlight_color")
+            .as_str()
+            .unwrap()
+            .to_owned(),
     }
 }
 
@@ -80,20 +98,44 @@ pub fn get_config() -> Config {
 
     // Pick one random pow icon
     let mut rng = thread_rng();
-    let pow_icon_choices: Vec<char> =
-        get_value(&config, "general.power_icons").as_str().unwrap().chars().collect();
+    let pow_icon_choices: Vec<char> = get_value(&config, "general.power_icons")
+        .as_str()
+        .unwrap()
+        .chars()
+        .collect();
     let pow_icon = rng.choose(&pow_icon_choices).unwrap();
 
     Config {
         height: get_value(&config, "general.height").as_integer().unwrap(),
         power_icon: *pow_icon,
         font: get_value(&config, "general.font").as_str().unwrap().to_owned(),
-        icon_font: get_value(&config, "general.icon_font").as_str().unwrap().to_owned(),
-        workspace_icons: get_value(&config, "general.workspace_icons").as_str().unwrap().to_owned(),
-        gen_pad: get_value(&config, "placeholders.general").as_str().unwrap().to_owned(),
-        pow_pad: get_value(&config, "placeholders.power").as_str().unwrap().to_owned(),
-        ws_pad: get_value(&config, "placeholders.workspace").as_str().unwrap().to_owned(),
-        dat_pad: get_value(&config, "placeholders.clock").as_str().unwrap().to_owned(),
-        vol_pad: get_value(&config, "placeholders.volume").as_str().unwrap().to_owned(),
+        icon_font: get_value(&config, "general.icon_font")
+            .as_str()
+            .unwrap()
+            .to_owned(),
+        workspace_icons: get_value(&config, "general.workspace_icons")
+            .as_str()
+            .unwrap()
+            .to_owned(),
+        gen_pad: get_value(&config, "placeholders.general")
+            .as_str()
+            .unwrap()
+            .to_owned(),
+        pow_pad: get_value(&config, "placeholders.power")
+            .as_str()
+            .unwrap()
+            .to_owned(),
+        ws_pad: get_value(&config, "placeholders.workspace")
+            .as_str()
+            .unwrap()
+            .to_owned(),
+        dat_pad: get_value(&config, "placeholders.clock")
+            .as_str()
+            .unwrap()
+            .to_owned(),
+        vol_pad: get_value(&config, "placeholders.volume")
+            .as_str()
+            .unwrap()
+            .to_owned(),
     }
 }
