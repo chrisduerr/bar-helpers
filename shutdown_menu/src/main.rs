@@ -121,7 +121,8 @@ fn main() {
     let bg_col = get_color("background_color");
     let bg_col_sec = get_color("background_secondary");
     let data = format!("window {{background-color: {}}} * {{border: none;}} button \
-                        {{background-color: {}; padding-left: 14px; padding-right: 14px;}}",
+                        {{background-color: {}; padding-left: 14px; padding-right: 14px; \
+                        -gtk-icon-effect: none;}}",
                        &bg_col,
                        &bg_col_sec);
     let screen = Screen::get_default().unwrap();
