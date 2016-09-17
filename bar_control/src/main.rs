@@ -112,11 +112,7 @@ fn get_date(config: &Config, colors: &Colors) -> String {
                        config.dat_pad))
 }
 
-fn get_vol(screen: &str,
-           config: &Config,
-           colors: &Colors,
-           exec: &Executables)
-           -> String {
+fn get_vol(screen: &str, config: &Config, colors: &Colors, exec: &Executables) -> String {
     let cmd_out = Command::new("amixer")
         .args(&["-D", "pulse", "get", "Master"])
         .output();
@@ -145,11 +141,7 @@ fn get_vol(screen: &str,
     }
 }
 
-fn get_pow(screen: &str,
-           config: &Config,
-           colors: &Colors,
-           exec: &Executables)
-           -> String {
+fn get_pow(screen: &str, config: &Config, colors: &Colors, exec: &Executables) -> String {
     let pow_script = format!("{} {} &", exec.pow, screen);
     add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}{}%{{A}}",
                        colors.bg_sec,
@@ -167,9 +159,7 @@ fn get_screens() -> Vec<Screen> {
         Err(_) => return Vec::new(),
     };
     let xrandr_str = String::from_utf8_lossy(&xrandr_out.stdout);
-    let screen_re = Regex::new("([a-zA-Z0-9-]*) connected \
-                                .*?([0-9]*)x[^+]*\\+([0-9]*)")
-        .unwrap();
+    let screen_re = Regex::new("([a-zA-Z0-9-]*) connected .*?([0-9]*)x[^+]*\\+([0-9]*)").unwrap();
     for caps in screen_re.captures_iter(&xrandr_str) {
         screens.push(Screen {
             name: caps.at(1).unwrap().to_owned(),
@@ -180,8 +170,7 @@ fn get_screens() -> Vec<Screen> {
     screens
 }
 
-fn i3ipc_get_workspaces(i3con: &mut I3Connection)
-                        -> Vec<i3ipc::reply::Workspace> {
+fn i3ipc_get_workspaces(i3con: &mut I3Connection) -> Vec<i3ipc::reply::Workspace> {
     match i3con.get_workspaces() {
         Ok(gw) => gw.workspaces,
         Err(_) => {
@@ -269,10 +258,10 @@ fn main() {
                     exec = config::get_executables();
                     pow_block = get_pow(&name, &config, &colors, &exec);
 
-                    if monitor_count_changed(&display_count) {
-                        restart_request.store(true, Ordering::SeqCst);
-                        break;
-                    }
+                    // if monitor_count_changed(&display_count) {
+                    // restart_request.store(true, Ordering::SeqCst);
+                    // break;
+                    // }
                 } else {
                     update_count += 1;
                 }
@@ -281,12 +270,7 @@ fn main() {
                 let workspaces = i3ipc_get_workspaces(&mut i3con);
 
                 let date_block = get_date(&config, &colors);
-                let ws_block = get_ws(&name,
-                                      &config,
-                                      &colors,
-                                      &exec,
-                                      &display_count,
-                                      &workspaces);
+                let ws_block = get_ws(&name, &config, &colors, &exec, &display_count, &workspaces);
                 let vol_block = get_vol(&name, &config, &colors, &exec);
 
                 let bar_string = format!("{}{}{}%{{c}}{}%{{r}}{}{}\n",
