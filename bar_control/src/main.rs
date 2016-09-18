@@ -3,19 +3,21 @@ extern crate rand;
 extern crate toml;
 extern crate i3ipc;
 extern crate regex;
+extern crate libudev;
 
 mod config;
 
 use std::thread;
-use std::io::prelude::*;
-use std::time::Duration;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
+use std::io::prelude::*;
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::os::unix::io::{FromRawFd, IntoRawFd};
 use regex::Regex;
 use i3ipc::I3Connection;
 use config::{Config, Executables, Colors};
+use libudev::{Context, Monitor};
 
 
 struct Screen {
@@ -186,17 +188,28 @@ fn i3ipc_get_workspaces(i3con: &mut I3Connection) -> Vec<i3ipc::reply::Workspace
     }
 }
 
-fn monitor_count_changed(curr_count: &i32) -> bool {
-    let output = Command::new("xrandr").output().unwrap();
-    let xrandr_str = String::from_utf8_lossy(&output.stdout);
-    let monitor_count = xrandr_str.matches(" connected").count() as i32;
-    monitor_count != *curr_count
-}
-
 fn main() {
     let restart_request = Arc::new(AtomicBool::new(false));
     let screens = get_screens();
     let display_count = screens.len() as i32;
+
+    // Thread for monitor change
+    {
+        let restart_request = restart_request.clone();
+        thread::spawn(move || {
+            let context = Context::new().unwrap();
+            let mut monitor = Monitor::new(&context).unwrap();
+            monitor.match_subsystem("drm").unwrap();
+            let mut socket = monitor.listen().unwrap();
+            loop {
+                let event = socket.receive_event();
+                if event.is_some() {
+                    restart_request.store(true, Ordering::SeqCst);
+                    break;
+                }
+            }
+        });
+    }
 
     let mut bar_threads = Vec::new();
     for screen in screens {
@@ -205,10 +218,11 @@ fn main() {
         let mut colors = config::get_colors();
         let mut exec = config::get_executables();
 
-        // Clone screen props so they're accessible by all threads
+        // Clone vars so they're accessible by all threads
         let name = screen.name.clone();
         let xres = screen.xres.clone();
         let xoffset = screen.xoffset.clone();
+        let restart_request = restart_request.clone();
 
         // Start i3ipc connection
         let mut i3con = I3Connection::connect().unwrap();
@@ -245,7 +259,6 @@ fn main() {
         });
 
         // Thread that writes to lemonbar stdin
-        let restart_request = restart_request.clone();
         bar_threads.push(thread::spawn(move || {
             let stdin = lemonbar.stdin.as_mut().unwrap();
             let mut update_count = 0;
@@ -258,10 +271,9 @@ fn main() {
                     exec = config::get_executables();
                     pow_block = get_pow(&name, &config, &colors, &exec);
 
-                    // if monitor_count_changed(&display_count) {
-                    // restart_request.store(true, Ordering::SeqCst);
-                    // break;
-                    // }
+                    if restart_request.load(Ordering::SeqCst) {
+                        break;
+                    }
                 } else {
                     update_count += 1;
                 }
