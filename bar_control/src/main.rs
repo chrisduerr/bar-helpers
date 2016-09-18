@@ -207,6 +207,7 @@ fn main() {
                     restart_request.store(true, Ordering::SeqCst);
                     break;
                 }
+                thread::sleep(Duration::new(3, 0));
             }
         });
     }
