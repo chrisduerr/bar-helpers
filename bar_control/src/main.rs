@@ -65,8 +65,7 @@ fn get_ws(screen: &str,
         } else {
             let ws_index = ws_index.unwrap();
             if workspaces[ws_index].visible {
-                result_str = format!("{}%{{B{}}}%{{F{}}}%{{A:{}:\
-                                      }}{}{}{}%{{A}}",
+                result_str = format!("{}%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}{}%{{A}}",
                                      result_str,
                                      colors.bg_sec,
                                      colors.fg_col,
@@ -75,8 +74,7 @@ fn get_ws(screen: &str,
                                      icon,
                                      config.ws_pad);
             } else if workspaces[ws_index].urgent {
-                result_str = format!("{}%{{B{}}}%{{F{}}}%{{A:{}:\
-                                      }}{}{}{}%{{A}}",
+                result_str = format!("{}%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}{}%{{A}}",
                                      result_str,
                                      colors.bg_col,
                                      colors.hl_col,
@@ -85,8 +83,7 @@ fn get_ws(screen: &str,
                                      icon,
                                      config.ws_pad);
             } else {
-                result_str = format!("{}%{{B{}}}%{{F{}}}%{{A:{}:\
-                                      }}{}{}{}%{{A}}",
+                result_str = format!("{}%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}{}%{{A}}",
                                      result_str,
                                      colors.bg_col,
                                      colors.fg_sec,
