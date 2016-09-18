@@ -261,42 +261,46 @@ fn main() {
 
         // Thread that writes to lemonbar stdin
         bar_threads.push(thread::spawn(move || {
-            let stdin = lemonbar.stdin.as_mut().unwrap();
-            let mut update_count = 0;
-            loop {
-                // Check for config and monitor update every ~5 seconds
-                if update_count == 50 {
-                    update_count = 0;
-                    config = config::get_config();
-                    colors = config::get_colors();
-                    exec = config::get_executables();
-                    pow_block = get_pow(&name, &config, &colors, &exec);
+            {
+                let stdin = lemonbar.stdin.as_mut().unwrap();
+                let mut update_count = 0;
+                loop {
+                    // Check for config and monitor update every ~5 seconds
+                    if update_count == 50 {
+                        update_count = 0;
+                        config = config::get_config();
+                        colors = config::get_colors();
+                        exec = config::get_executables();
+                        pow_block = get_pow(&name, &config, &colors, &exec);
 
-                    if restart_request.load(Ordering::SeqCst) {
-                        break;
+                        if restart_request.load(Ordering::SeqCst) {
+                            break;
+                        }
+                    } else {
+                        update_count += 1;
                     }
-                } else {
-                    update_count += 1;
+
+                    // Get workspaces from i3ipc, restablish connection if necessary
+                    let workspaces = i3ipc_get_workspaces(&mut i3con);
+
+                    let date_block = get_date(&config, &colors);
+                    let ws_block =
+                        get_ws(&name, &config, &colors, &exec, &display_count, &workspaces);
+                    let vol_block = get_vol(&name, &config, &colors, &exec);
+
+                    let bar_string = format!("{}{}{}%{{c}}{}%{{r}}{}{}\n",
+                                             pow_block,
+                                             config.gen_pad,
+                                             ws_block,
+                                             date_block,
+                                             config.gen_pad,
+                                             vol_block);
+                    let _ = stdin.write((&bar_string[..]).as_bytes());
+
+                    thread::sleep(Duration::from_millis(100));
                 }
-
-                // Get workspaces from i3ipc, restablish connection if necessary
-                let workspaces = i3ipc_get_workspaces(&mut i3con);
-
-                let date_block = get_date(&config, &colors);
-                let ws_block = get_ws(&name, &config, &colors, &exec, &display_count, &workspaces);
-                let vol_block = get_vol(&name, &config, &colors, &exec);
-
-                let bar_string = format!("{}{}{}%{{c}}{}%{{r}}{}{}\n",
-                                         pow_block,
-                                         config.gen_pad,
-                                         ws_block,
-                                         date_block,
-                                         config.gen_pad,
-                                         vol_block);
-                let _ = stdin.write((&bar_string[..]).as_bytes());
-
-                thread::sleep(Duration::from_millis(100));
             }
+            let _ = lemonbar.kill();
         }));
     }
 
