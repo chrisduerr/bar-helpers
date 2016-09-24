@@ -125,15 +125,15 @@ fn get_vol(screen: &str, config: &Config, colors: &Colors, exec: &Executables) -
     match cmd_out {
         Ok(out) => {
             let out_str = String::from_utf8_lossy(&out.stdout);
-            let vol_reg = Regex::new(".*\\[(0-9*)%\\]").unwrap();
+            let vol_reg = Regex::new(".*\\[([0-9]*)%\\]").unwrap();
             let vol = match vol_reg.captures(&out_str) {
                 Some(caps) => {
                     match caps.at(1) {
-                        Some(vol) => vol,
-                        None => "",
+                        Some(vol) => format!("{:>3}", vol),
+                        None => String::new(),
                     }
                 }
-                None => "",
+                None => String::new(),
             };
 
             let vol_script = format!("{} {} &", exec.vol, screen);
