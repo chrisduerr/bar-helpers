@@ -8,16 +8,14 @@ extern crate libudev;
 mod config;
 
 use std::thread;
-use std::sync::Arc;
-use std::time::Duration;
 use std::io::prelude::*;
 use std::process::{Command, Stdio};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::os::unix::io::{FromRawFd, IntoRawFd};
 use regex::Regex;
 use i3ipc::I3Connection;
 use config::{Config, Executables, Colors};
 use libudev::{Context, Monitor};
+use time::Duration;
 
 
 struct Screen {
@@ -195,7 +193,6 @@ fn main() {
     loop {
         let screens = get_screens();
         let display_count = screens.len() as i32;
-        let restart_request = Arc::new(AtomicBool::new(false));
 
         let mut config = config::get_config();
         let mut colors = config::get_colors();
@@ -204,25 +201,6 @@ fn main() {
         let mut lemonbars = Vec::new();
 
         let mut i3con = I3Connection::connect().unwrap();
-
-        // Thread to notify on monitor change
-        {
-            let restart_request = restart_request.clone();
-            thread::spawn(move || {
-                let context = Context::new().unwrap();
-                let mut monitor = Monitor::new(&context).unwrap();
-                monitor.match_subsystem("drm").unwrap();
-                let mut socket = monitor.listen().unwrap();
-                loop {
-                    let event = socket.receive_event();
-                    if event.is_some() {
-                        restart_request.store(true, Ordering::SeqCst);
-                        break;
-                    }
-                    thread::sleep(Duration::new(3, 0));
-                }
-            });
-        }
 
         for screen in screens {
             // Start lemonbar
@@ -263,34 +241,39 @@ fn main() {
             lemonbars.push(lemonstruct);
         }
 
-        let mut update_count = 0;
+        // Setup listener for monitor count change
+        let context = Context::new().unwrap();
+        let mut monitor = Monitor::new(&context).unwrap();
+        monitor.match_subsystem("drm").unwrap();
+        let mut socket = monitor.listen().unwrap();
+
+        let mut curr_time = time::now();
         loop {
-            if update_count == 50 {
-                update_count = 0;
+            let elapsed = time::now() - curr_time;
+            if elapsed >= Duration::seconds(3) {
+
+                curr_time = time::now();
                 config = config::get_config();
                 colors = config::get_colors();
                 exec = config::get_executables();
 
-                if restart_request.load(Ordering::SeqCst) {
+                for lemonbar in &mut lemonbars {
+                    lemonbar.pow_block = get_pow(&lemonbar.screen.name, &config, &colors, &exec);
+                }
+
+                // Kill all bars and restart on monitor change
+                if socket.receive_event().is_some() {
+                    for lemonbar in &mut lemonbars {
+                        let _ = lemonbar.bar.kill();
+                    }
                     break;
                 }
-            } else {
-                update_count += 1;
             }
 
             let workspaces = i3ipc_get_workspaces(&mut i3con);
             let date_block = get_date(&config, &colors);
 
             for lemonbar in &mut lemonbars {
-                if update_count == 50 {
-                    lemonbar.pow_block = get_pow(&lemonbar.screen.name, &config, &colors, &exec);
-
-                    if restart_request.load(Ordering::SeqCst) {
-                        let _ = lemonbar.bar.kill();
-                        continue;
-                    }
-                }
-
                 let stdin = lemonbar.bar.stdin.as_mut().unwrap();
 
                 let ws_block = get_ws(&lemonbar.screen.name,
@@ -311,7 +294,7 @@ fn main() {
 
                 let _ = stdin.write((&bar_string[..]).as_bytes());
             }
-            thread::sleep(Duration::from_millis(100));
+            thread::sleep(Duration::milliseconds(100).to_std().unwrap());
         }
     }
 }
