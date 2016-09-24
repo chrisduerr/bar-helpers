@@ -119,18 +119,21 @@ fn get_vol(screen: &str, config: &Config, colors: &Colors, exec: &Executables) -
     let cmd_out = Command::new("amixer")
         .args(&["-D", "pulse", "get", "Master"])
         .output();
+
     match cmd_out {
         Ok(out) => {
             let out_str = String::from_utf8_lossy(&out.stdout);
-            let vol_end = &out_str[..match out_str.find('%') {
-                Some(pos) => pos,
-                None => return String::new(),
-            }];
-            let vol = format!("{:>3}",
-                              &vol_end[match vol_end.rfind('[') {
-                                  Some(pos) => pos,
-                                  None => return String::new(),
-                              } + 1..]);
+            let vol_reg = Regex::new(".*\\[(0-9*)%\\]").unwrap();
+            let vol = match vol_reg.captures(&out_str) {
+                Some(caps) => {
+                    match caps.at(1) {
+                        Some(vol) => vol,
+                        None => "",
+                    }
+                }
+                None => "",
+            };
+
             let vol_script = format!("{} {} &", exec.vol, screen);
             add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}{} {}{}%{{A}}",
                                colors.bg_sec,
@@ -157,12 +160,15 @@ fn get_pow(screen: &str, config: &Config, colors: &Colors, exec: &Executables) -
 
 fn get_screens() -> Vec<Screen> {
     let mut screens = Vec::new();
+
     let xrandr_out = match Command::new("xrandr").output() {
         Ok(out) => out,
         Err(_) => return Vec::new(),
     };
+
     let xrandr_str = String::from_utf8_lossy(&xrandr_out.stdout);
     let screen_re = Regex::new("([a-zA-Z0-9-]*) connected .*?([0-9]*)x[^+]*\\+([0-9]*)").unwrap();
+
     for caps in screen_re.captures_iter(&xrandr_str) {
         screens.push(Screen {
             name: caps.at(1).unwrap().to_owned(),
@@ -170,6 +176,7 @@ fn get_screens() -> Vec<Screen> {
             xoffset: caps.at(3).unwrap().to_owned(),
         });
     }
+
     screens
 }
 
