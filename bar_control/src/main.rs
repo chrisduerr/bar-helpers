@@ -98,6 +98,7 @@ fn get_ws(screen: &str,
             }
         }
     }
+
     add_reset(&result_str)
 }
 
@@ -107,6 +108,7 @@ fn get_date(config: &Config, colors: &Colors) -> String {
         Ok(fmt) => fmt,
         Err(_) => return String::new(),
     };
+
     add_reset(&format!("%{{B{}}}%{{F{}}}{}{}{}",
                        colors.bg_sec,
                        colors.fg_col,
@@ -135,6 +137,7 @@ fn get_vol(screen: &str, config: &Config, colors: &Colors, exec: &Executables) -
             };
 
             let vol_script = format!("{} {} &", exec.vol, screen);
+
             add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}{} {}{}%{{A}}",
                                colors.bg_sec,
                                colors.fg_col,
@@ -149,6 +152,7 @@ fn get_vol(screen: &str, config: &Config, colors: &Colors, exec: &Executables) -
 
 fn get_pow(screen: &str, config: &Config, colors: &Colors, exec: &Executables) -> String {
     let pow_script = format!("{} {} &", exec.pow, screen);
+
     add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}{}%{{A}}",
                        colors.bg_sec,
                        colors.fg_col,
