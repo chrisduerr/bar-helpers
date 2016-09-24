@@ -26,6 +26,12 @@ struct Screen {
     xoffset: String,
 }
 
+struct Lemonbar {
+    bar: std::process::Child,
+    screen: Screen,
+    pow_block: String,
+}
+
 
 fn add_reset(input: &str) -> String {
     format!("{}%{{B-}}%{{F-}}%{{T-}}", input)
@@ -186,126 +192,126 @@ fn i3ipc_get_workspaces(i3con: &mut I3Connection) -> Vec<i3ipc::reply::Workspace
 }
 
 fn main() {
-    let restart_request = Arc::new(AtomicBool::new(false));
-    let screens = get_screens();
-    let display_count = screens.len() as i32;
+    loop {
+        let screens = get_screens();
+        let display_count = screens.len() as i32;
+        let restart_request = Arc::new(AtomicBool::new(false));
 
-    // Thread for monitor change
-    {
-        let restart_request = restart_request.clone();
-        thread::spawn(move || {
-            let context = Context::new().unwrap();
-            let mut monitor = Monitor::new(&context).unwrap();
-            monitor.match_subsystem("drm").unwrap();
-            let mut socket = monitor.listen().unwrap();
-            loop {
-                let event = socket.receive_event();
-                if event.is_some() {
-                    restart_request.store(true, Ordering::SeqCst);
-                    break;
-                }
-                thread::sleep(Duration::new(3, 0));
-            }
-        });
-    }
-
-    let mut bar_threads = Vec::new();
-    for screen in screens {
-        // Load user settings from file
         let mut config = config::get_config();
         let mut colors = config::get_colors();
         let mut exec = config::get_executables();
 
-        // Clone vars so they're accessible by all threads
-        let name = screen.name.clone();
-        let xres = screen.xres.clone();
-        let xoffset = screen.xoffset.clone();
-        let restart_request = restart_request.clone();
+        let mut lemonbars = Vec::new();
 
-        // Start i3ipc connection
         let mut i3con = I3Connection::connect().unwrap();
 
-        // Get static pow block
-        let mut pow_block = get_pow(&name, &config, &colors, &exec);
-
-        // Start lemonbar
-        let rect = format!("{}x{}+{}+0", xres, config.height, xoffset);
-        let mut lemonbar = Command::new("lemonbar")
-            .args(&["-g",
-                    &rect[..],
-                    "-F",
-                    &colors.fg_col[..],
-                    "-B",
-                    &colors.bg_col[..],
-                    "-f",
-                    &config.font[..],
-                    "-f",
-                    &config.icon_font[..]])
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .spawn()
-            .unwrap();
-
-        // Thread that controls executing lemonbar stdout
-        let stdout = lemonbar.stdout.take().unwrap();
-        thread::spawn(move || {
-            unsafe {
-                let _ = Command::new("sh")
-                    .stdin(Stdio::from_raw_fd(stdout.into_raw_fd()))
-                    .spawn();
-            }
-        });
-
-        // Thread that writes to lemonbar stdin
-        bar_threads.push(thread::spawn(move || {
-            {
-                let stdin = lemonbar.stdin.as_mut().unwrap();
-                let mut update_count = 0;
+        // Thread to notify on monitor change
+        {
+            let restart_request = restart_request.clone();
+            thread::spawn(move || {
+                let context = Context::new().unwrap();
+                let mut monitor = Monitor::new(&context).unwrap();
+                monitor.match_subsystem("drm").unwrap();
+                let mut socket = monitor.listen().unwrap();
                 loop {
-                    // Check for config and monitor update every ~5 seconds
-                    if update_count == 50 {
-                        update_count = 0;
-                        config = config::get_config();
-                        colors = config::get_colors();
-                        exec = config::get_executables();
-                        pow_block = get_pow(&name, &config, &colors, &exec);
-
-                        if restart_request.load(Ordering::SeqCst) {
-                            break;
-                        }
-                    } else {
-                        update_count += 1;
+                    let event = socket.receive_event();
+                    if event.is_some() {
+                        restart_request.store(true, Ordering::SeqCst);
+                        break;
                     }
-
-                    // Get workspaces from i3ipc, restablish connection if necessary
-                    let workspaces = i3ipc_get_workspaces(&mut i3con);
-
-                    let date_block = get_date(&config, &colors);
-                    let ws_block =
-                        get_ws(&name, &config, &colors, &exec, &display_count, &workspaces);
-                    let vol_block = get_vol(&name, &config, &colors, &exec);
-
-                    let bar_string = format!("{}{}{}%{{c}}{}%{{r}}{}{}\n",
-                                             pow_block,
-                                             config.gen_pad,
-                                             ws_block,
-                                             date_block,
-                                             config.gen_pad,
-                                             vol_block);
-                    let _ = stdin.write((&bar_string[..]).as_bytes());
-
-                    thread::sleep(Duration::from_millis(100));
+                    thread::sleep(Duration::new(3, 0));
                 }
+            });
+        }
+
+        for screen in screens {
+            // Start lemonbar
+            let rect = format!("{}x{}+{}+0", screen.xres, config.height, screen.xoffset);
+            let mut lemonbar = Command::new("lemonbar")
+                .args(&["-g",
+                        &rect[..],
+                        "-F",
+                        &colors.fg_col[..],
+                        "-B",
+                        &colors.bg_col[..],
+                        "-f",
+                        &config.font[..],
+                        "-f",
+                        &config.icon_font[..]])
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .spawn()
+                .unwrap();
+
+            // Thread that controls executing lemonbar stdout
+            let stdout = lemonbar.stdout.take().unwrap();
+            thread::spawn(move || {
+                unsafe {
+                    let _ = Command::new("sh")
+                        .stdin(Stdio::from_raw_fd(stdout.into_raw_fd()))
+                        .spawn();
+                }
+            });
+
+            // Collect all lemonbars in one vector for future processing
+            let pow = get_pow(&screen.name, &config, &colors, &exec);
+            let lemonstruct = Lemonbar {
+                bar: lemonbar,
+                screen: screen,
+                pow_block: pow,
+            };
+            lemonbars.push(lemonstruct);
+        }
+
+        let mut update_count = 0;
+        loop {
+            if update_count == 50 {
+                update_count = 0;
+                config = config::get_config();
+                colors = config::get_colors();
+                exec = config::get_executables();
+
+                if restart_request.load(Ordering::SeqCst) {
+                    break;
+                }
+            } else {
+                update_count += 1;
             }
-            let _ = lemonbar.kill();
-        }));
-    }
 
-    for bar_thread in bar_threads {
-        let _ = bar_thread.join();
-    }
+            let workspaces = i3ipc_get_workspaces(&mut i3con);
+            let date_block = get_date(&config, &colors);
 
-    if restart_request.load(Ordering::SeqCst) {
-        main();
+            for lemonbar in &mut lemonbars {
+                if update_count == 50 {
+                    lemonbar.pow_block = get_pow(&lemonbar.screen.name, &config, &colors, &exec);
+
+                    if restart_request.load(Ordering::SeqCst) {
+                        let _ = lemonbar.bar.kill();
+                        continue;
+                    }
+                }
+
+                let stdin = lemonbar.bar.stdin.as_mut().unwrap();
+
+                let ws_block = get_ws(&lemonbar.screen.name,
+                                      &config,
+                                      &colors,
+                                      &exec,
+                                      &display_count,
+                                      &workspaces);
+                let vol_block = get_vol(&lemonbar.screen.name, &config, &colors, &exec);
+
+                let bar_string = format!("{}{}{}%{{c}}{}%{{r}}{}{}\n",
+                                         lemonbar.pow_block,
+                                         config.gen_pad,
+                                         ws_block,
+                                         date_block,
+                                         config.gen_pad,
+                                         vol_block);
+
+                let _ = stdin.write((&bar_string[..]).as_bytes());
+            }
+            thread::sleep(Duration::from_millis(100));
+        }
     }
 }
