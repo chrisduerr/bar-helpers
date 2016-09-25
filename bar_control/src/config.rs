@@ -6,21 +6,21 @@ use std::io::prelude::*;
 
 pub struct Config {
     pub height: i64,
-    pub power_icon: String,
     pub font: String,
-    pub icon_font: String,
-    pub workspace_icons: String,
+    pub ws_pad: String,
     pub gen_pad: String,
     pub pow_pad: String,
-    pub ws_pad: String,
     pub dat_pad: String,
     pub vol_pad: String,
+    pub icon_font: String,
+    pub power_icon: String,
+    pub workspace_icons: String,
 }
 
 pub struct Executables {
+    pub ws: String,
     pub pow: String,
     pub vol: String,
-    pub ws: String,
 }
 
 pub struct Colors {
@@ -32,103 +32,60 @@ pub struct Colors {
 }
 
 
-pub fn get_value(toml: &toml::Value, value: &str) -> toml::Value {
-    toml.lookup(value).unwrap().clone()
+pub fn get_value_str(toml: &toml::Value, value: &str) -> String {
+    let tml_val = toml.lookup(value).unwrap();
+    tml_val.as_str().unwrap().to_string()
 }
 
-pub fn get_config_path() -> String {
+pub fn get_value_int(toml: &toml::Value, value: &str) -> i64 {
+    let tml_val = toml.lookup(value).unwrap().clone();
+    tml_val.as_integer().unwrap()
+}
+
+pub fn get_config_toml() -> toml::Value {
     let home_path = home_dir().unwrap();
     let home_str = home_path.to_str().unwrap();
-    format!("{}/.config/undeadlemon/config.toml", home_str)
+    let cfg_path = format!("{}/.config/undeadlemon/config.toml", home_str);
+
+    let mut buf = String::new();
+    let mut f = File::open(&cfg_path).unwrap();
+    f.read_to_string(&mut buf).unwrap();
+
+    buf.parse().unwrap()
 }
 
 pub fn get_executables() -> Executables {
-    let mut f = File::open(get_config_path()).unwrap();
-    let mut buf = String::new();
-    let _ = f.read_to_string(&mut buf);
-
-    let config: toml::Value = buf.parse().unwrap();
+    let config: toml::Value = get_config_toml();
     Executables {
-        pow: get_value(&config, "exec.power").as_str().unwrap().to_owned(),
-        vol: get_value(&config, "exec.volume").as_str().unwrap().to_owned(),
-        ws: get_value(&config, "exec.switch_focused_workspace")
-            .as_str()
-            .unwrap()
-            .to_owned(),
+        pow: get_value_str(&config, "exec.power"),
+        vol: get_value_str(&config, "exec.volume"),
+        ws: get_value_str(&config, "exec.switch_focused_workspace"),
     }
 }
 
 pub fn get_colors() -> Colors {
-    let mut f = File::open(get_config_path()).unwrap();
-    let mut buf = String::new();
-    let _ = f.read_to_string(&mut buf);
-
-    let config: toml::Value = buf.parse().unwrap();
+    let config: toml::Value = get_config_toml();
     Colors {
-        bg_col: get_value(&config, "colors.background_color")
-            .as_str()
-            .unwrap()
-            .to_owned(),
-        bg_sec: get_value(&config, "colors.background_secondary")
-            .as_str()
-            .unwrap()
-            .to_owned(),
-        fg_col: get_value(&config, "colors.foreground_color")
-            .as_str()
-            .unwrap()
-            .to_owned(),
-        fg_sec: get_value(&config, "colors.foreground_secondary")
-            .as_str()
-            .unwrap()
-            .to_owned(),
-        hl_col: get_value(&config, "colors.highlight_color")
-            .as_str()
-            .unwrap()
-            .to_owned(),
+        hl_col: get_value_str(&config, "colors.highlight_color"),
+        bg_col: get_value_str(&config, "colors.background_color"),
+        fg_col: get_value_str(&config, "colors.foreground_color"),
+        bg_sec: get_value_str(&config, "colors.background_secondary"),
+        fg_sec: get_value_str(&config, "colors.foreground_secondary"),
     }
 }
 
 pub fn get_config() -> Config {
-    let mut f = File::open(get_config_path()).unwrap();
-    let mut buf = String::new();
-    let _ = f.read_to_string(&mut buf);
-
-    let config: toml::Value = buf.parse().unwrap();
-
+    let config: toml::Value = get_config_toml();
     Config {
-        height: get_value(&config, "general.height").as_integer().unwrap(),
-        power_icon: get_value(&config, "general.power_icon")
-            .as_str()
-            .unwrap()
-            .to_owned(),
-        font: get_value(&config, "general.font").as_str().unwrap().to_owned(),
-        icon_font: get_value(&config, "general.icon_font")
-            .as_str()
-            .unwrap()
-            .to_owned(),
-        workspace_icons: get_value(&config, "general.workspace_icons")
-            .as_str()
-            .unwrap()
-            .to_owned(),
-        gen_pad: get_value(&config, "placeholders.general")
-            .as_str()
-            .unwrap()
-            .to_owned(),
-        pow_pad: get_value(&config, "placeholders.power")
-            .as_str()
-            .unwrap()
-            .to_owned(),
-        ws_pad: get_value(&config, "placeholders.workspace")
-            .as_str()
-            .unwrap()
-            .to_owned(),
-        dat_pad: get_value(&config, "placeholders.clock")
-            .as_str()
-            .unwrap()
-            .to_owned(),
-        vol_pad: get_value(&config, "placeholders.volume")
-            .as_str()
-            .unwrap()
-            .to_owned(),
+        font: get_value_str(&config, "general.font"),
+        height: get_value_int(&config, "general.height"),
+        pow_pad: get_value_str(&config, "placeholders.power"),
+        dat_pad: get_value_str(&config, "placeholders.clock"),
+        vol_pad: get_value_str(&config, "placeholders.volume"),
+        gen_pad: get_value_str(&config, "placeholders.general"),
+        ws_pad: get_value_str(&config, "placeholders.workspace"),
+        icon_font: get_value_str(&config, "general.icon_font"),
+        power_icon: get_value_str(&config, "general.power_icon"),
+        workspace_icons: get_value_str(&config, "general.workspace_icons"),
     }
 }
