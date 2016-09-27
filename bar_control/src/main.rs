@@ -55,48 +55,28 @@ fn get_ws(screen: &str,
             }
         }
 
-        let ws_script = format!("{} {}", exec.ws, i + 1);
-
-        if ws_index.is_none() {
-            result_str = format!("{}%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}{}%{{A}}",
-                                 result_str,
-                                 colors.bg_col,
-                                 colors.bg_sec,
-                                 ws_script,
-                                 config.ws_pad,
-                                 icon,
-                                 config.ws_pad);
-        } else {
-            let ws_index = ws_index.unwrap();
-            if workspaces[ws_index].visible {
-                result_str = format!("{}%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}{}%{{A}}",
-                                     result_str,
-                                     colors.bg_sec,
-                                     colors.fg_col,
-                                     ws_script,
-                                     config.ws_pad,
-                                     icon,
-                                     config.ws_pad);
-            } else if workspaces[ws_index].urgent {
-                result_str = format!("{}%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}{}%{{A}}",
-                                     result_str,
-                                     colors.bg_col,
-                                     colors.hl_col,
-                                     ws_script,
-                                     config.ws_pad,
-                                     icon,
-                                     config.ws_pad);
-            } else {
-                result_str = format!("{}%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}{}%{{A}}",
-                                     result_str,
-                                     colors.bg_col,
-                                     colors.fg_sec,
-                                     ws_script,
-                                     config.ws_pad,
-                                     icon,
-                                     config.ws_pad);
+        let (col_prim, col_sec) = match ws_index {
+            None => (&colors.bg_col, &colors.bg_sec),
+            Some(i) => {
+                if workspaces[i].visible {
+                    (&colors.bg_sec, &colors.fg_col)
+                } else if workspaces[i].urgent {
+                    (&colors.bg_col, &colors.hl_col)
+                } else {
+                    (&colors.bg_col, &colors.fg_sec)
+                }
             }
-        }
+        };
+
+        let ws_script = format!("{} {}", exec.ws, i + 1);
+        result_str = format!("{}%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}{}%{{A}}",
+                             result_str,
+                             col_prim,
+                             col_sec,
+                             ws_script,
+                             config.ws_pad,
+                             icon,
+                             config.ws_pad);
     }
 
     add_reset(&result_str)
