@@ -143,4 +143,3 @@ $exec $HOME/Scripts/bar_control                         # start Lemonbar Rust
 $exec nitrogen --restore                                # set Wallpaper
 $exec keepass                                           # password manager
 $exec numlockx                                          # enable numlock
-$exec eval $(ssh-agent)                                 # start ssh credential helper
