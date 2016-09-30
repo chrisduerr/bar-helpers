@@ -1,0 +1,10 @@
+[package]
+name = "volume_slider"
+version = "0.1.0"
+authors = ["UndeadLeech <programming@undeadleech.de>"]
+
+[dependencies]
+gtk = "0.1"
+gdk = "0.5"
+toml = "0.2"
+regex = "0.1"
