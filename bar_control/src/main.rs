@@ -1,21 +1,23 @@
+#[macro_use]
+extern crate serde_derive;
+extern crate libudev;
+extern crate i3ipc;
+extern crate regex;
 extern crate time;
 extern crate rand;
 extern crate toml;
-extern crate i3ipc;
-extern crate regex;
-extern crate libudev;
 
 mod config;
 
-use std::thread;
-use std::io::prelude::*;
-use std::process::{Command, Stdio};
 use std::os::unix::io::{FromRawFd, IntoRawFd};
-use regex::Regex;
-use i3ipc::I3Connection;
-use config::{Config, Executables, Colors};
+use std::process::{Command, Stdio};
 use libudev::{Context, Monitor};
+use i3ipc::I3Connection;
+use std::io::prelude::*;
 use time::Duration;
+use config::Config;
+use regex::Regex;
+use std::thread;
 
 
 struct Screen {
@@ -37,14 +39,12 @@ fn add_reset(input: &str) -> String {
 
 fn get_ws(screen: &str,
           config: &Config,
-          colors: &Colors,
-          exec: &Executables,
           display_count: &i32,
           workspaces: &[i3ipc::reply::Workspace])
           -> String {
     let mut result_str = String::new();
 
-    for (i, icon) in config.workspace_icons.chars().enumerate() {
+    for (i, icon) in config.general.workspace_icons.chars().enumerate() {
         let mut ws_index = None;
         for (x, workspace) in workspaces.iter().enumerate() {
             if &workspace.output == screen {
@@ -56,33 +56,33 @@ fn get_ws(screen: &str,
         }
 
         let (col_prim, col_sec) = match ws_index {
-            None => (&colors.bg_col, &colors.bg_sec),
+            None => (&config.colors.bg_col, &config.colors.bg_sec),
             Some(i) => {
                 if workspaces[i].visible {
-                    (&colors.bg_sec, &colors.fg_col)
+                    (&config.colors.bg_sec, &config.colors.fg_col)
                 } else if workspaces[i].urgent {
-                    (&colors.bg_col, &colors.hl_col)
+                    (&config.colors.bg_col, &config.colors.hl_col)
                 } else {
-                    (&colors.bg_col, &colors.fg_sec)
+                    (&config.colors.bg_col, &config.colors.fg_sec)
                 }
             }
         };
 
-        let ws_script = format!("{} {}", exec.ws, i + 1);
+        let ws_script = format!("{} {}", config.exec.workspace, i + 1);
         result_str = format!("{}%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}{}%{{A}}",
                              result_str,
                              col_prim,
                              col_sec,
                              ws_script,
-                             config.ws_pad,
+                             config.placeholders.workspace,
                              icon,
-                             config.ws_pad);
+                             config.placeholders.workspace);
     }
 
     add_reset(&result_str)
 }
 
-fn get_date(config: &Config, colors: &Colors) -> String {
+fn get_date(config: &Config) -> String {
     let curr_time = time::now();
     let curr_time_clock = match curr_time.strftime("%H:%M") {
         Ok(fmt) => fmt,
@@ -90,56 +90,48 @@ fn get_date(config: &Config, colors: &Colors) -> String {
     };
 
     add_reset(&format!("%{{B{}}}%{{F{}}}{}{}{}",
-                       colors.bg_sec,
-                       colors.fg_col,
-                       config.dat_pad,
+                       config.colors.bg_sec,
+                       config.colors.fg_col,
+                       config.placeholders.clock,
                        curr_time_clock,
-                       config.dat_pad))
+                       config.placeholders.clock))
 }
 
-fn get_vol(screen: &str, config: &Config, colors: &Colors, exec: &Executables) -> String {
-    let cmd_out = Command::new("amixer")
-        .args(&["-D", "pulse", "get", "Master"])
+fn get_vol(screen: &str, config: &Config) -> String {
+    let cmd_out = Command::new("bash")
+        .args(&["-c",
+                "pactl list sinks | grep '^[[:space:]]Volume:' | head -n 1 | tail -n 1 | sed -e \
+                 's,.* \\([0-9][0-9]*\\)%.*,\\1,'"])
         .output();
 
     match cmd_out {
         Ok(out) => {
-            let out_str = String::from_utf8_lossy(&out.stdout);
-            let vol_reg = Regex::new(".*\\[([0-9]*)%\\]").unwrap();
-            let vol = match vol_reg.captures(&out_str) {
-                Some(caps) => {
-                    match caps.at(1) {
-                        Some(vol) => format!("{:>3}", vol),
-                        None => String::new(),
-                    }
-                }
-                None => String::new(),
-            };
-
-            let vol_script = format!("{} {} &", exec.vol, screen);
+            let vol_script = format!("{} {} &", config.exec.volume, screen);
+            let vol = String::from_utf8_lossy(&out.stdout);
+            let vol = vol.trim();
 
             add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}{} {}{}%{{A}}",
-                               colors.bg_sec,
-                               colors.fg_col,
+                               config.colors.bg_sec,
+                               config.colors.fg_col,
                                vol_script,
-                               config.vol_pad,
+                               config.placeholders.volume,
                                vol,
-                               config.vol_pad))
+                               config.placeholders.volume))
         }
         Err(_) => String::new(),
     }
 }
 
-fn get_pow(screen: &str, config: &Config, colors: &Colors, exec: &Executables) -> String {
-    let pow_script = format!("{} {} &", exec.pow, screen);
+fn get_pow(screen: &str, config: &Config) -> String {
+    let pow_script = format!("{} {} &", config.exec.power, screen);
 
     add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}{}%{{A}}",
-                       colors.bg_sec,
-                       colors.fg_col,
+                       config.colors.bg_sec,
+                       config.colors.fg_col,
                        pow_script,
-                       config.pow_pad,
-                       config.power_icon,
-                       config.pow_pad))
+                       config.placeholders.power,
+                       config.general.power_icon,
+                       config.placeholders.power))
 }
 
 fn get_screens() -> Vec<Screen> {
@@ -155,9 +147,9 @@ fn get_screens() -> Vec<Screen> {
 
     for caps in screen_re.captures_iter(&xrandr_str) {
         screens.push(Screen {
-            name: caps.at(1).unwrap().to_owned(),
-            xres: caps.at(2).unwrap().to_owned(),
-            xoffset: caps.at(3).unwrap().to_owned(),
+            name: caps.get(1).unwrap().to_owned().as_str().to_string(),
+            xres: caps.get(2).unwrap().to_owned().as_str().to_string(),
+            xoffset: caps.get(3).unwrap().to_owned().as_str().to_string(),
         });
     }
 
@@ -186,8 +178,6 @@ fn main() {
         let display_count = screens.len() as i32;
 
         let mut config = config::get_config();
-        let mut colors = config::get_colors();
-        let mut exec = config::get_executables();
 
         let mut lemonbars = Vec::new();
 
@@ -195,18 +185,21 @@ fn main() {
 
         for screen in screens {
             // Start lemonbar
-            let rect = format!("{}x{}+{}+0", screen.xres, config.height, screen.xoffset);
+            let rect = format!("{}x{}+{}+0",
+                               screen.xres,
+                               config.general.height,
+                               screen.xoffset);
             let mut lemonbar = Command::new("lemonbar")
                 .args(&["-g",
                         &rect[..],
                         "-F",
-                        &colors.fg_col[..],
+                        &config.colors.fg_col[..],
                         "-B",
-                        &colors.bg_col[..],
+                        &config.colors.bg_col[..],
                         "-f",
-                        &config.font[..],
+                        &config.general.font[..],
                         "-f",
-                        &config.icon_font[..]])
+                        &config.general.icon_font[..]])
                 .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
                 .spawn()
@@ -223,7 +216,7 @@ fn main() {
             });
 
             // Collect all lemonbars in one vector for future processing
-            let pow = get_pow(&screen.name, &config, &colors, &exec);
+            let pow = get_pow(&screen.name, &config);
             let lemonstruct = Lemonbar {
                 bar: lemonbar,
                 screen: screen,
@@ -245,11 +238,9 @@ fn main() {
 
                 curr_time = time::now();
                 config = config::get_config();
-                colors = config::get_colors();
-                exec = config::get_executables();
 
                 for lemonbar in &mut lemonbars {
-                    lemonbar.pow_block = get_pow(&lemonbar.screen.name, &config, &colors, &exec);
+                    lemonbar.pow_block = get_pow(&lemonbar.screen.name, &config);
                 }
 
                 // Kill all bars and restart on monitor change
@@ -262,25 +253,20 @@ fn main() {
             }
 
             let workspaces = i3ipc_get_workspaces(&mut i3con);
-            let date_block = get_date(&config, &colors);
+            let date_block = get_date(&config);
 
             for lemonbar in &mut lemonbars {
                 let stdin = lemonbar.bar.stdin.as_mut().unwrap();
 
-                let ws_block = get_ws(&lemonbar.screen.name,
-                                      &config,
-                                      &colors,
-                                      &exec,
-                                      &display_count,
-                                      &workspaces);
-                let vol_block = get_vol(&lemonbar.screen.name, &config, &colors, &exec);
+                let ws_block = get_ws(&lemonbar.screen.name, &config, &display_count, &workspaces);
+                let vol_block = get_vol(&lemonbar.screen.name, &config);
 
                 let bar_string = format!("{}{}{}%{{c}}{}%{{r}}{}{}\n",
                                          lemonbar.pow_block,
-                                         config.gen_pad,
+                                         config.placeholders.general,
                                          ws_block,
                                          date_block,
-                                         config.gen_pad,
+                                         config.placeholders.general,
                                          vol_block);
 
                 let _ = stdin.write((&bar_string[..]).as_bytes());
