@@ -18,6 +18,7 @@ pub struct General {
     pub icon_font: String,
     pub power_icon: String,
     pub workspace_icons: String,
+    pub underline_height: i64,
 }
 
 #[derive(Deserialize)]

@@ -44,7 +44,10 @@ fn get_ws(screen: &str,
           -> String {
     let mut result_str = String::new();
 
-    for (i, icon) in config.general.workspace_icons.chars().enumerate() {
+    for (i, icon) in config.general
+            .workspace_icons
+            .chars()
+            .enumerate() {
         let mut ws_index = None;
         for (x, workspace) in workspaces.iter().enumerate() {
             if &workspace.output == screen {
@@ -147,10 +150,22 @@ fn get_screens() -> Vec<Screen> {
 
     for caps in screen_re.captures_iter(&xrandr_str) {
         screens.push(Screen {
-            name: caps.get(1).unwrap().to_owned().as_str().to_string(),
-            xres: caps.get(2).unwrap().to_owned().as_str().to_string(),
-            xoffset: caps.get(3).unwrap().to_owned().as_str().to_string(),
-        });
+                         name: caps.get(1)
+                             .unwrap()
+                             .to_owned()
+                             .as_str()
+                             .to_string(),
+                         xres: caps.get(2)
+                             .unwrap()
+                             .to_owned()
+                             .as_str()
+                             .to_string(),
+                         xoffset: caps.get(3)
+                             .unwrap()
+                             .to_owned()
+                             .as_str()
+                             .to_string(),
+                     });
     }
 
     screens
@@ -199,7 +214,11 @@ fn main() {
                         "-f",
                         &config.general.font[..],
                         "-f",
-                        &config.general.icon_font[..]])
+                        &config.general.icon_font[..],
+                        "-u",
+                        &(&config.general.underline_height).to_string(),
+                        "-o",
+                        &(&config.general.underline_height / -2).to_string()])
                 .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
                 .spawn()
@@ -207,13 +226,9 @@ fn main() {
 
             // Thread that controls executing lemonbar stdout
             let stdout = lemonbar.stdout.take().unwrap();
-            thread::spawn(move || {
-                unsafe {
-                    let _ = Command::new("sh")
-                        .stdin(Stdio::from_raw_fd(stdout.into_raw_fd()))
-                        .spawn();
-                }
-            });
+            thread::spawn(move || unsafe {
+                              let _ = Command::new("sh").stdin(Stdio::from_raw_fd(stdout.into_raw_fd())).spawn();
+                          });
 
             // Collect all lemonbars in one vector for future processing
             let pow = get_pow(&screen.name, &config);
@@ -256,12 +271,16 @@ fn main() {
             let date_block = get_date(&config);
 
             for lemonbar in &mut lemonbars {
-                let stdin = lemonbar.bar.stdin.as_mut().unwrap();
+                let stdin = lemonbar.bar
+                    .stdin
+                    .as_mut()
+                    .unwrap();
 
                 let ws_block = get_ws(&lemonbar.screen.name, &config, &display_count, &workspaces);
                 let vol_block = get_vol(&lemonbar.screen.name, &config);
 
-                let bar_string = format!("{}{}{}%{{c}}{}%{{r}}{}{}\n",
+                let bar_string = format!("%{{O10000}}%{{U{}+u}}%{{l}}{}{}{}%{{c}}{}%{{r}}{}{}\n",
+                                         config.colors.hl_col,
                                          lemonbar.pow_block,
                                          config.placeholders.general,
                                          ws_block,
