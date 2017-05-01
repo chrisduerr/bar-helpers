@@ -8,41 +8,27 @@ use gtk::{StyleContext, CssProvider, Window, WindowType, Box, Scale, Adjustment,
 use gdk::Screen;
 use regex::Regex;
 use std::env;
+use std::error;
+use std::boxed;
 use std::fs::File;
 use std::io::Read;
 use std::process::Command;
 
-fn get_current_volume() -> f64 {
-    let output = Command::new("amixer")
-        .args(&["-D", "pulse", "get", "Master"])
-        .output();
-    match output {
-        Ok(out) => {
-            let stdout_str = String::from_utf8_lossy(&out.stdout);
-            let re = Regex::new("\\[([0-9]+)%\\]").unwrap();
-            match re.captures(&stdout_str) {
-                Some(caps) => caps.at(1).unwrap().parse().unwrap(),
-                None => 0.0,
-            }
-        }
-        Err(_) => 0.0,
-    }
+fn get_current_volume() -> Result<f64, boxed::Box<error::Error>> {
+    let output = Command::new("sh")
+        .args(&["-c", "pactl list sinks | grep '^[[:space:]]Volume:' | head -n 1 | tail -n 1 | sed -e 's,.* \\([0-9][0-9]*\\)%.*,\\1,'"])
+        .output()?;
+    Ok(String::from_utf8_lossy(&output.stdout).trim().parse()?)
 }
 
 fn set_volume(level: f64) {
-    let vol_trunc = level as u8;
-    let vol_perc = format!("{}%", vol_trunc);
-    let _ = Command::new("amixer")
-        .args(&["-q", "-D", "pulse", "set", "Master", &vol_perc[..]])
-        .spawn();
+    let command = format!("pactl set-sink-volume 0 {}%", level as u8);
+    let _ = Command::new("sh").args(&["-c", &command]).spawn();
 }
 
 // Check if Scale already is running
 fn is_running() -> bool {
-    let output = Command::new("ps")
-        .args(&["-ax"])
-        .output()
-        .unwrap();
+    let output = Command::new("ps").args(&["-ax"]).output().unwrap();
     let out_str = String::from_utf8_lossy(&output.stdout);
     let re = Regex::new("[0-9]+:[0-9]+ [^ ]*volume_slider ").unwrap();
     let nbr_running = re.find_iter(&out_str).count();
@@ -50,7 +36,7 @@ fn is_running() -> bool {
 }
 
 fn gotta_kill_em_all() {
-    let _ = Command::new("killall").arg("volume_slider").spawn();
+    let _ = Command::new("pkill").arg("volume_slider").spawn();
 }
 
 fn get_position(display: &str) -> (i32, i32) {
@@ -81,13 +67,18 @@ fn get_background_color() -> String {
     let _ = f.read_to_string(&mut buf);
 
     let tomled: toml::Value = buf.parse().unwrap();
-    tomled.lookup("colors.background_color").unwrap().as_str().unwrap().to_owned()
+    tomled
+        .lookup("colors.bg_col")
+        .unwrap()
+        .as_str()
+        .unwrap()
+        .to_owned()
 }
 
 // Create a new scale
 // If one is already running -> KILL IT
 fn main() {
-    if is_running() {
+    while is_running() {
         gotta_kill_em_all();
         return;
     }
@@ -105,7 +96,8 @@ fn main() {
     window.set_default_size(250, 30);
 
     // Create Scale
-    let adj = Adjustment::new(get_current_volume(), 0.0, 101.0, 1.0, 1.0, 1.0);
+    let current_vol = get_current_volume().unwrap_or(0.0);
+    let adj = Adjustment::new(current_vol, 0.0, 101.0, 1.0, 1.0, 1.0);
     let scale = Scale::new(Orientation::Horizontal, Some(&adj));
     scale.set_draw_value(false);
 
@@ -130,13 +122,11 @@ fn main() {
     window.move_(win_pos.0, win_pos.1);
 
     window.connect_delete_event(|_, _| {
-        gtk::main_quit();
-        Inhibit(false)
-    });
+                                    gtk::main_quit();
+                                    Inhibit(false)
+                                });
 
-    scale.connect_value_changed(move |scale| {
-        set_volume(scale.get_value());
-    });
+    scale.connect_value_changed(move |scale| { set_volume(scale.get_value()); });
 
     gtk::main();
 }
