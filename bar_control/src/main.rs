@@ -44,10 +44,7 @@ fn get_ws(screen: &str,
           -> String {
     let mut result_str = String::new();
 
-    for (i, icon) in config.general
-            .workspace_icons
-            .chars()
-            .enumerate() {
+    for (i, icon) in config.general.workspace_icons.chars().enumerate() {
         let mut ws_index = None;
         for (x, workspace) in workspaces.iter().enumerate() {
             if &workspace.output == screen {
@@ -125,13 +122,10 @@ fn get_vol(screen: &str, config: &Config) -> String {
     }
 }
 
-fn get_pow(screen: &str, config: &Config) -> String {
-    let pow_script = format!("{} {} &", config.exec.power, screen);
-
-    add_reset(&format!("%{{B{}}}%{{F{}}}%{{A:{}:}}{}{}{}%{{A}}",
+fn get_pow(config: &Config) -> String {
+    add_reset(&format!("%{{B{}}}%{{F{}}}{}{}{}",
                        config.colors.bg_sec,
                        config.colors.fg_col,
-                       pow_script,
                        config.placeholders.power,
                        config.general.power_icon,
                        config.placeholders.power))
@@ -150,21 +144,9 @@ fn get_screens() -> Vec<Screen> {
 
     for caps in screen_re.captures_iter(&xrandr_str) {
         screens.push(Screen {
-                         name: caps.get(1)
-                             .unwrap()
-                             .to_owned()
-                             .as_str()
-                             .to_string(),
-                         xres: caps.get(2)
-                             .unwrap()
-                             .to_owned()
-                             .as_str()
-                             .to_string(),
-                         xoffset: caps.get(3)
-                             .unwrap()
-                             .to_owned()
-                             .as_str()
-                             .to_string(),
+                         name: caps.get(1).unwrap().to_owned().as_str().to_string(),
+                         xres: caps.get(2).unwrap().to_owned().as_str().to_string(),
+                         xoffset: caps.get(3).unwrap().to_owned().as_str().to_string(),
                      });
     }
 
@@ -227,11 +209,13 @@ fn main() {
             // Thread that controls executing lemonbar stdout
             let stdout = lemonbar.stdout.take().unwrap();
             thread::spawn(move || unsafe {
-                              let _ = Command::new("sh").stdin(Stdio::from_raw_fd(stdout.into_raw_fd())).spawn();
+                              let _ = Command::new("sh")
+                                  .stdin(Stdio::from_raw_fd(stdout.into_raw_fd()))
+                                  .spawn();
                           });
 
             // Collect all lemonbars in one vector for future processing
-            let pow = get_pow(&screen.name, &config);
+            let pow = get_pow(&config);
             let lemonstruct = Lemonbar {
                 bar: lemonbar,
                 screen: screen,
@@ -255,7 +239,7 @@ fn main() {
                 config = config::get_config();
 
                 for lemonbar in &mut lemonbars {
-                    lemonbar.pow_block = get_pow(&lemonbar.screen.name, &config);
+                    lemonbar.pow_block = get_pow(&config);
                 }
 
                 // Kill all bars and restart on monitor change
@@ -271,10 +255,7 @@ fn main() {
             let date_block = get_date(&config);
 
             for lemonbar in &mut lemonbars {
-                let stdin = lemonbar.bar
-                    .stdin
-                    .as_mut()
-                    .unwrap();
+                let stdin = lemonbar.bar.stdin.as_mut().unwrap();
 
                 let ws_block = get_ws(&lemonbar.screen.name, &config, &display_count, &workspaces);
                 let vol_block = get_vol(&lemonbar.screen.name, &config);

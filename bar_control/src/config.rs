@@ -34,7 +34,6 @@ pub struct Placeholders {
 pub struct Executables {
     pub workspace: String,
     pub volume: String,
-    pub power: String,
 }
 
 #[derive(Deserialize)]
